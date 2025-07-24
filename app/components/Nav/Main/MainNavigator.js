@@ -47,6 +47,7 @@ import Confirm from '../../Views/confirmations/legacy/SendFlow/Confirm';
 import { Confirm as RedesignedConfirm } from '../../Views/confirmations/components/confirm';
 import ContactForm from '../../Views/Settings/Contacts/ContactForm';
 import ActivityView from '../../Views/ActivityView';
+import RewardsView from '../../Views/RewardsView';
 import SwapsAmountView from '../../UI/Swaps';
 import SwapsQuotesView from '../../UI/Swaps/QuotesView';
 import CollectiblesDetails from '../../UI/CollectibleModal';
@@ -524,16 +525,14 @@ const HomeTabs = () => {
       rootScreenName: Routes.BROWSER_VIEW,
       unmountOnBlur: true,
     },
-    activity: {
-      tabBarIconKey: TabBarIconKey.Activity,
+    rewards: {
+      tabBarIconKey: TabBarIconKey.Rewards,
       callback: () => {
         trackEvent(
-          createEventBuilder(
-            MetaMetricsEvents.NAVIGATION_TAPS_TRANSACTION_HISTORY,
-          ).build(),
+          createEventBuilder(MetaMetricsEvents.NAVIGATION_TAPS_REWARDS).build(),
         );
       },
-      rootScreenName: Routes.TRANSACTIONS_VIEW,
+      rootScreenName: Routes.REWARDS_VIEW,
       unmountOnBlur: true,
     },
     rewards: {

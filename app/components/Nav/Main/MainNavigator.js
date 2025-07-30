@@ -533,7 +533,6 @@ const HomeTabs = () => {
         );
       },
       rootScreenName: Routes.REWARDS_VIEW,
-      unmountOnBlur: true,
     },
     rewards: {
       tabBarIconKey: TabBarIconKey.Rewards,

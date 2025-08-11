@@ -536,15 +536,6 @@ const HomeTabs = () => {
       },
       rootScreenName: Routes.REWARDS_VIEW,
     },
-    rewards: {
-      tabBarIconKey: TabBarIconKey.Rewards,
-      callback: () => {
-        trackEvent(
-          createEventBuilder(MetaMetricsEvents.NAVIGATION_TAPS_REWARDS).build(),
-        );
-      },
-      rootScreenName: Routes.REWARDS_VIEW,
-    },
     settings: {
       tabBarIconKey: TabBarIconKey.Setting,
       callback: () => {

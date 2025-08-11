@@ -278,4 +278,20 @@ export class RewardsController extends BaseController<
       this.#isProcessingSilentAuth = false;
     }
   }
+
+  /**
+   * Set the dev-only login address
+   */
+  setDevOnlyLoginAddress(address: string | null): void {
+    this.update((state) => {
+      state.devOnlyLoginAddress = address;
+    });
+  }
+
+  /**
+   * Get the dev-only login address
+   */
+  getDevOnlyLoginAddress(): string | null {
+    return this.state.devOnlyLoginAddress;
+  }
 }

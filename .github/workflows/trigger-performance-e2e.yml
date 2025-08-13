@@ -1,10 +1,10 @@
-name: Performance E2E Tests - Android & iOS Separate Jobs
+name: Performance E2E Test Manual WorkFlow
 
 on:
   workflow_dispatch:
     inputs:
       info:
-        description: 'This workflow runs performance tests on multiple devices with separate jobs for Android and iOS platforms'
+        description: 'This workflow runs performance tests on multiple devices for both iOS and Android platforms'
         required: false
         type: string
       browserstack_app_url_android:
@@ -20,7 +20,6 @@ on:
         required: false
         default: '**/tests/*.spec.js'
         type: string
-        # Note: Currently not used in the workflow but kept for future implementation
 
 permissions:
   contents: read
@@ -32,92 +31,31 @@ env:
   MM_TEST_ACCOUNT_SRP: ${{ secrets.MM_TEST_ACCOUNT_SRP }}
 
 jobs:
-  # Generate Device Matrix
-  generate-matrix:
-    name: Generate Device Matrix
+  # Sequential Android Tests on Multiple Devices
+  android-tests:
+    name: Android Tests
     runs-on: ubuntu-latest
-    outputs:
-      android-matrix: ${{ steps.device-matrix.outputs.android-matrix }}
-      ios-matrix: ${{ steps.device-matrix.outputs.ios-matrix }}
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Generate Device Matrix
-        id: device-matrix
-        run: |
-          echo "Installing jq for JSON processing..."
-          sudo apt-get update && sudo apt-get install -y jq
-          
-          echo "Reading device matrix from appwright/device-matrix.json..."
-          
-          # Check if file exists
-          if [ ! -f "appwright/device-matrix.json" ]; then
-            echo "Error: device-matrix.json not found!"
-            exit 1
-          fi
-          
-          # Read the device matrix JSON file
-          DEVICE_MATRIX=$(cat appwright/device-matrix.json)
-          
-          # Validate JSON format
-          if ! echo "$DEVICE_MATRIX" | jq . > /dev/null 2>&1; then
-            echo "Error: Invalid JSON in device-matrix.json"
-            exit 1
-          fi
-          
-          # Generate separate matrices for Android and iOS
-          echo "Generating Android device matrix..."
-          ANDROID_MATRIX=$(jq -c '{ device: [.android_devices[] | {name: .name, os_version: .os_version, category: .category, platform: "android"}] }' appwright/device-matrix.json)
-          
-          echo "Generating iOS device matrix..."
-          IOS_MATRIX=$(jq -c '{ device: [.ios_devices[] | {name: .name, os_version: .os_version, category: .category, platform: "ios"}] }' appwright/device-matrix.json)
-          
-          # Validate the generated matrices
-          if ! echo "$ANDROID_MATRIX" | jq . > /dev/null 2>&1; then
-            echo "Error: Failed to generate valid Android matrix JSON"
-            echo "Generated matrix: $ANDROID_MATRIX"
-            exit 1
-          fi
-          
-          if ! echo "$IOS_MATRIX" | jq . > /dev/null 2>&1; then
-            echo "Error: Failed to generate valid iOS matrix JSON"
-            echo "Generated matrix: $IOS_MATRIX"
-            exit 1
-          fi
-          
-          # Output the matrices for GitHub Actions
-          echo "android-matrix=$ANDROID_MATRIX" >> $GITHUB_OUTPUT
-          echo "ios-matrix=$IOS_MATRIX" >> $GITHUB_OUTPUT
-          
-          echo "Device matrices generated successfully:"
-          echo "Android devices:"
-          echo "$ANDROID_MATRIX" | jq -r '.device[] | "  \(.name) (\(.category)) - \(.os_version)"'
-          echo "iOS devices:"
-          echo "$IOS_MATRIX" | jq -r '.device[] | "  \(.name) (\(.category)) - \(.os_version)"'
-          
-          # Count devices for verification
-          ANDROID_COUNT=$(echo "$ANDROID_MATRIX" | jq '.device | length')
-          IOS_COUNT=$(echo "$IOS_MATRIX" | jq '.device | length')
-          TOTAL_COUNT=$((ANDROID_COUNT + IOS_COUNT))
-          
-          echo "Total devices: $TOTAL_COUNT (Android: $ANDROID_COUNT, iOS: $IOS_COUNT)"
-          
-          if [ "$ANDROID_COUNT" -eq 0 ] && [ "$IOS_COUNT" -eq 0 ]; then
-            echo "Error: No devices found in matrix!"
-            exit 1
-          fi
-
-  # Run Tests on Android Devices
-  run-android-tests:
-    name: Run Tests on Android Devices
-    runs-on: ubuntu-latest
-    needs: [generate-matrix]
     strategy:
       fail-fast: false
       matrix:
-        device: ${{ fromJson(needs.generate-matrix.outputs.android-matrix) }}
+        device:
+          # High-end Devices
+          - name: 'Samsung Galaxy S23 Ultra'
+            os_version: '13.0'
+            category: 'high'
+          - name: 'Google Pixel 8 Pro'
+            os_version: '14.0'
+            category: 'high'
+          
+          # Medium Devices
+          - name: 'Samsung Galaxy A52s 5G'
+            os_version: '12.0'
+            category: 'medium'
+          
+          # Low-end Devices
+          - name: 'Samsung Galaxy A32'
+            os_version: '11.0'
+            category: 'low'
     
     steps:
       - name: Checkout code
@@ -153,25 +91,35 @@ jobs:
           sleep 30
           echo "BrowserStack Local should be ready now"
       
-      - name: Run Tests on ${{ matrix.device.name }}
+      - name: Update Appwright Config for Android Device
+        run: |
+          echo "Updating Appwright config for device: ${{ matrix.device.name }}"
+          # Update the browserstack-android project configuration
+          sed -i "s|name: process.env.BROWSERSTACK_DEVICE || 'Samsung Galaxy S23 Ultra'|name: \"${{ matrix.device.name }}\"|g" appwright/appwright.config.ts
+          sed -i "s|osVersion: process.env.BROWSERSTACK_OS_VERSION || '13.0'|osVersion: \"${{ matrix.device.os_version }}\"|g" appwright/appwright.config.ts
+          sed -i "s|buildPath: process.env.BROWSERSTACK_ANDROID_APP_URL|buildPath: \"${{ github.event.inputs.browserstack_app_url_android }}\"|g" appwright/appwright.config.ts
+          # Also update the testDir if it exists
+          if grep -q "testDir: './tests'" appwright/appwright.config.ts; then
+            sed -i "s|testDir: './tests'|testDir: './tests',\n  testMatch: \"${{ github.event.inputs.test_suite }}\"|g" appwright/appwright.config.ts
+          fi
+      
+      - name: Run Android Tests on ${{ matrix.device.name }}
         env:
           BROWSERSTACK_LOCAL: true
           BROWSERSTACK_LOCAL_IDENTIFIER: ${{ github.run_id }}
           BROWSERSTACK_DEVICE: ${{ matrix.device.name }}
           BROWSERSTACK_OS_VERSION: ${{ matrix.device.os_version }}
-          BROWSERSTACK_ANDROID_APP_URL: ${{ github.event.inputs.browserstack_app_url_android }}
-          BROWSERSTACK_IOS_APP_URL: ${{ github.event.inputs.browserstack_app_url_ios }}
         run: |
-          echo "=== Testing Android Device: ${{ matrix.device.name }} (${{ matrix.device.category }} Class) ==="
+          echo "=== Testing ${{ matrix.device.name }} (${{ matrix.device.category }} Class) ==="
           echo "OS Version: ${{ matrix.device.os_version }}"
           echo "Category: ${{ matrix.device.category }}"
           echo "Branch: ${{ github.ref_name }}"
           
           yarn run-appwright:android-bs
       
-      - name: Upload Test Results
-        if: always()
+      - name: Upload Android Test Results
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: android-test-results-${{ matrix.device.name }}-${{ matrix.device.os_version }}
           path: |
@@ -179,15 +127,28 @@ jobs:
             appwright-report/
           retention-days: 7
 
-  # Run Tests on iOS Devices
-  run-ios-tests:
-    name: Run Tests on iOS Devices
+  # Sequential iOS Tests on Multiple Devices
+  ios-tests:
+    name: iOS Tests
     runs-on: ubuntu-latest
-    needs: [generate-matrix]
     strategy:
       fail-fast: false
       matrix:
-        device: ${{ fromJson(needs.generate-matrix.outputs.ios-matrix) }}
+        device:
+          # High-end Devices
+          - name: 'iPhone 14 Pro Max'
+            os_version: '16'
+            category: 'high'
+          
+          # Medium Devices
+          - name: 'iPhone 11'
+            os_version: '13'
+            category: 'medium'
+          
+          # Low-end Devices
+          - name: 'iPhone 8'
+            os_version: '11'
+            category: 'low'
     
     steps:
       - name: Checkout code
@@ -223,29 +184,38 @@ jobs:
           sleep 30
           echo "BrowserStack Local should be ready now"
       
-      - name: Run Tests on ${{ matrix.device.name }}
+      - name: Update Appwright Config for iOS Device
+        run: |
+          echo "Updating Appwright config for device: ${{ matrix.device.name }}"
+          # Update the browserstack-ios project configuration
+          sed -i "s|name: process.env.BROWSERSTACK_DEVICE || 'iPhone 14 Pro Max'|name: \"${{ matrix.device.name }}\"|g" appwright/appwright.config.ts
+          sed -i "s|osVersion: process.env.BROWSERSTACK_OS_VERSION || '16.0'|osVersion: \"${{ matrix.device.os_version }}\"|g" appwright/appwright.config.ts
+          sed -i "s|buildPath: process.env.BROWSERSTACK_IOS_APP_URL|buildPath: \"${{ github.event.inputs.browserstack_app_url_ios }}\"|g" appwright/appwright.config.ts
+          # Also update the testDir if it exists
+          if grep -q "testDir: './tests'" appwright/appwright.config.ts; then
+            sed -i "s|testDir: './tests'|testDir: './tests',\n  testMatch: \"${{ github.event.inputs.test_suite }}\"|g" appwright/appwright.config.ts
+          fi
+      
+      - name: Run iOS Tests on ${{ matrix.device.name }}
         env:
           BROWSERSTACK_LOCAL: true
           BROWSERSTACK_LOCAL_IDENTIFIER: ${{ github.run_id }}
           BROWSERSTACK_DEVICE: ${{ matrix.device.name }}
           BROWSERSTACK_OS_VERSION: ${{ matrix.device.os_version }}
-          BROWSERSTACK_ANDROID_APP_URL: ${{ github.event.inputs.browserstack_app_url_android }}
-          BROWSERSTACK_IOS_APP_URL: ${{ github.event.inputs.browserstack_app_url_ios }}
         run: |
-          echo "=== Testing iOS Device: ${{ matrix.device.name }} (${{ matrix.device.category }} Class) ==="
+          echo "=== Testing ${{ matrix.device.name }} (${{ matrix.device.category }} Class) ==="
           echo "OS Version: ${{ matrix.device.os_version }}"
           echo "Category: ${{ matrix.device.category }}"
           echo "Branch: ${{ github.ref_name }}"
-          
           if [ "${{ matrix.device.os_version }}" == "13" ] || [ "${{ matrix.device.os_version }}" == "11" ]; then
             echo "Warning: iOS ${{ matrix.device.os_version }} may not be supported by MetaMask app"
           fi
           
           yarn run-appwright:ios-bs
-        
-      - name: Upload Test Results
-        if: always()
+      
+      - name: Upload iOS Test Results
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: ios-test-results-${{ matrix.device.name }}-${{ matrix.device.os_version }}
           path: |
@@ -253,74 +223,54 @@ jobs:
             appwright-report/
           retention-days: 7
 
-  # Results Summary
-  test-summary:
-    name: Test Results Summary
+  # Results Gathering Job
+  gather-results:
+    name: Gather Test Results
     runs-on: ubuntu-latest
-    needs: [run-android-tests, run-ios-tests]
+    needs: [android-tests, ios-tests]
     if: always()
     
     steps:
-      - name: Download Test Results
+      - name: Download All Test Results
         uses: actions/download-artifact@v4
         with:
           path: test-results/
       
       - name: Generate Test Summary
         run: |
-          echo "## Multi-Device Test Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Sequential Test Execution Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Device Matrix" >> $GITHUB_STEP_SUMMARY
+          echo "### Execution Order" >> $GITHUB_STEP_SUMMARY
+          echo "Tests were executed sequentially (one device at a time) for better resource management." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # Read the device matrix to generate dynamic summary
-          if [ -f "appwright/device-matrix.json" ]; then
-            DEVICE_MATRIX=$(cat appwright/device-matrix.json)
-            
-            # Android devices summary
-            ANDROID_COUNT=$(echo "$DEVICE_MATRIX" | jq '.android_devices | length')
-            echo "#### Android Devices ($ANDROID_COUNT total):" >> $GITHUB_STEP_SUMMARY
-            echo "$DEVICE_MATRIX" | jq -r '.android_devices[] | "\(.category | ascii_upcase) Class: \(.name) - Android \(.os_version)"' | while read -r line; do
-              echo "- **$line**" >> $GITHUB_STEP_SUMMARY
-            done
-            echo "" >> $GITHUB_STEP_SUMMARY
-            
-            # iOS devices summary
-            IOS_COUNT=$(echo "$DEVICE_MATRIX" | jq '.ios_devices | length')
-            echo "#### iOS Devices ($IOS_COUNT total):" >> $GITHUB_STEP_SUMMARY
-            echo "$DEVICE_MATRIX" | jq -r '.ios_devices[] | "\(.category | ascii_upcase) Class: \(.name) - iOS \(.os_version)"' | while read -r line; do
-              if [[ "$line" == *"iOS 13"* ]] || [[ "$line" == *"iOS 11"* ]]; then
-                echo "- **$line** - ⚠️ iOS version not supported by MetaMask" >> $GITHUB_STEP_SUMMARY
-              else
-                echo "- **$line**" >> $GITHUB_STEP_SUMMARY
-              fi
-            done
-          else
-            echo "⚠️ Device matrix file not found, using fallback summary" >> $GITHUB_STEP_SUMMARY
-            echo "#### Android Devices (5 total):" >> $GITHUB_STEP_SUMMARY
-            echo "1. **Samsung Galaxy S23 Ultra** (High Class) - Android 13" >> $GITHUB_STEP_SUMMARY
-            echo "2. **Google Pixel 8 Pro** (High Class) - Android 14" >> $GITHUB_STEP_SUMMARY
-            echo "3. **Samsung Galaxy A52s 5G** (Medium Class) - Android 12" >> $GITHUB_STEP_SUMMARY
-            echo "4. **Samsung Galaxy A32** (Low Class) - Android 11" >> $GITHUB_STEP_SUMMARY
-            echo "5. **TECNO KI5k** (Low Class) - Android 11" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "#### iOS Devices (3 total):" >> $GITHUB_STEP_SUMMARY
-            echo "1. **iPhone 14 Pro Max** (High Class) - iOS 16" >> $GITHUB_STEP_SUMMARY
-            echo "2. **iPhone 11** (Medium Class) - iOS 13 - ⚠️ iOS 13 not supported by MetaMask" >> $GITHUB_STEP_SUMMARY
-            echo "3. **iPhone 8** (Low Class) - iOS 11 - ⚠️ iOS 11 not supported by MetaMask" >> $GITHUB_STEP_SUMMARY
-          fi
-          
+          echo "### Device Matrix Overview" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Android Devices (5 total) - Sequential Order:" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Samsung Galaxy S23 Ultra** (High Class) - Android 13" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Google Pixel 8 Pro** (High Class) - Android 14" >> $GITHUB_STEP_SUMMARY
+          echo "3. **Samsung Galaxy A52s 5G** (Medium Class) - Android 12" >> $GITHUB_STEP_SUMMARY
+          echo "4. **Samsung Galaxy A32** (Low Class) - Android 11" >> $GITHUB_STEP_SUMMARY
+          echo "5. **TECNO KI5k** (Low Class) - Android 11" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### iOS Devices (3 total) - Sequential Order:" >> $GITHUB_STEP_SUMMARY
+          echo "1. **iPhone 14 Pro Max** (High Class) - iOS 16" >> $GITHUB_STEP_SUMMARY
+          echo "2. **iPhone 11** (Medium Class) - iOS 13 - ⚠️ iOS 13 not supported by MetaMask" >> $GITHUB_STEP_SUMMARY
+          echo "3. **iPhone 8** (Low Class) - iOS 11 - ⚠️ iOS 11 not supported by MetaMask" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "Check the artifacts above for detailed test reports from all devices." >> $GITHUB_STEP_SUMMARY
+          echo "Check the artifacts above for detailed test reports from each device." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Important Notes" >> $GITHUB_STEP_SUMMARY
-          echo "- Uses existing browserstack-android and browserstack-ios projects" >> $GITHUB_STEP_SUMMARY
-          echo "- Device-specific settings controlled via environment variables" >> $GITHUB_STEP_SUMMARY
+          echo "- Tests run sequentially: Device A → Device B → Device C, etc." >> $GITHUB_STEP_SUMMARY
           echo "- iOS 13 and iOS 11 devices may fail due to MetaMask app compatibility" >> $GITHUB_STEP_SUMMARY
+          echo "- Uses matrix strategy to dynamically update appwright config for each device" >> $GITHUB_STEP_SUMMARY
       
       - name: Check Test Results
         run: |
-          echo "## Test Execution Results Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "All test jobs completed successfully!"
+          if [ "${{ needs.android-tests.result }}" == "failure" ] || [ "${{ needs.ios-tests.result }}" == "failure" ]; then
+            echo "Some tests failed. Check the individual job results above."
+            echo "Note: iOS 13 and iOS 11 failures are expected due to MetaMask app compatibility."
+            exit 1
+          else
+            echo "All test jobs completed successfully!"
+          fi

@@ -94,10 +94,14 @@ jobs:
       - name: Update Appwright Config for Android Device
         run: |
           echo "Updating Appwright config for device: ${{ matrix.device.name }}"
-          sed -i "s/name: 'Samsung Galaxy S23 Ultra'/name: '${{ matrix.device.name }}'/g" appwright/appwright.config.ts
-          sed -i "s/osVersion: '13.0'/osVersion: '${{ matrix.device.os_version }}'/g" appwright/appwright.config.ts
-          sed -i "s|buildPath: 'bs://.*'|buildPath: '${{ github.event.inputs.browserstack_app_url_android }}'|g" appwright/appwright.config.ts
-          sed -i "s|testMatch: '.*'|testMatch: '${{ github.event.inputs.test_suite }}'|g" appwright/appwright.config.ts
+          # Update the browserstack-android project configuration
+          sed -i "s|name: process.env.BROWSERSTACK_DEVICE || 'Samsung Galaxy S23 Ultra'|name: '${{ matrix.device.name }}'|g" appwright/appwright.config.ts
+          sed -i "s|osVersion: process.env.BROWSERSTACK_OS_VERSION || '13.0'|osVersion: '${{ matrix.device.os_version }}'|g" appwright/appwright.config.ts
+          sed -i "s|buildPath: process.env.BROWSERSTACK_ANDROID_APP_URL|buildPath: '${{ github.event.inputs.browserstack_app_url_android }}'|g" appwright/appwright.config.ts
+          # Also update the testDir if it exists
+          if grep -q "testDir: './tests'" appwright/appwright.config.ts; then
+            sed -i "s|testDir: './tests'|testDir: './tests',\n  testMatch: '${{ github.event.inputs.test_suite }}'|g" appwright/appwright.config.ts
+          fi
       
       - name: Run Android Tests on ${{ matrix.device.name }}
         env:
@@ -183,10 +187,14 @@ jobs:
       - name: Update Appwright Config for iOS Device
         run: |
           echo "Updating Appwright config for device: ${{ matrix.device.name }}"
-          sed -i "s/name: 'iPhone 14 Pro Max'/name: '${{ matrix.device.name }}'/g" appwright/appwright.config.ts
-          sed -i "s/osVersion: '16'/osVersion: '${{ matrix.device.os_version }}'/g" appwright/appwright.config.ts
-          sed -i "s|buildPath: 'bs://.*'|buildPath: '${{ github.event.inputs.browserstack_app_url_ios }}'|g" appwright/appwright.config.ts
-          sed -i "s|testMatch: '.*'|testMatch: '${{ github.event.inputs.test_suite }}'|g" appwright/appwright.config.ts
+          # Update the browserstack-ios project configuration
+          sed -i "s|name: process.env.BROWSERSTACK_DEVICE || 'iPhone 14 Pro Max'|name: '${{ matrix.device.name }}'|g" appwright/appwright.config.ts
+          sed -i "s|osVersion: process.env.BROWSERSTACK_OS_VERSION || '16.0'|osVersion: '${{ matrix.device.os_version }}'|g" appwright/appwright.config.ts
+          sed -i "s|buildPath: process.env.BROWSERSTACK_IOS_APP_URL|buildPath: '${{ github.event.inputs.browserstack_app_url_ios }}'|g" appwright/appwright.config.ts
+          # Also update the testDir if it exists
+          if grep -q "testDir: './tests'" appwright/appwright.config.ts; then
+            sed -i "s|testDir: './tests'|testDir: './tests',\n  testMatch: '${{ github.event.inputs.test_suite }}'|g" appwright/appwright.config.ts
+          fi
       
       - name: Run iOS Tests on ${{ matrix.device.name }}
         env:

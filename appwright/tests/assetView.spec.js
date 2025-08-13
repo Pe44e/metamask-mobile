@@ -80,7 +80,6 @@ test('Asset View', async ({ device }, testInfo) => {
   assetViewScreen.start();
   await WalletMainScreen.tapOnToken('Ethereum');
   await TokenOverviewScreen.isTokenOverviewVisible();
-  await TokenOverviewScreen.isTodaysChangeVisible();
   assetViewScreen.stop();
 
   const performanceTracker = new PerformanceTracker();

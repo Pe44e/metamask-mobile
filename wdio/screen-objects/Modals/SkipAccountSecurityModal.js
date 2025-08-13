@@ -3,7 +3,6 @@ import Gestures from '../../helpers/Gestures';
 import { ChoosePasswordSelectorsIDs } from '../../../e2e/selectors/Onboarding/ChoosePassword.selectors';
 import AppwrightSelectors from '../../helpers/AppwrightSelectors';
 import { SkipAccountSecurityModalSelectorsIDs } from '../../../e2e/selectors/Onboarding/SkipAccountSecurityModal.selectors';
-import { expect as appwrightExpect } from 'appwright';
 
 class SkipAccountSecurityModal {
 
@@ -39,8 +38,7 @@ class SkipAccountSecurityModal {
   }
 
   async isVisible() {
-    const element = await this.skipBackupText;
-    await appwrightExpect(element).toBeVisible({ timeout: 10000 });
+    await expect(this.skipBackupText).toBeDisplayed();
   }
 }
 

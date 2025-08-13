@@ -57,20 +57,10 @@ class SwapScreen {
     // Split amount into digits
     const digits = this.splitAmountIntoDigits(amount);
     console.log('Amount digits:', digits);
+    
     digits.forEach(async digit => {
-      if ( await AppwrightSelectors.isAndroid(this._device)) {
-        if (digit != '.') {
-          const numberKey = await AppwrightSelectors.getElementByXpath(this._device, `//android.widget.Button[@content-desc='${digit}']`);
-          await numberKey.tap();
-        }
-        else {
-          const numberKey = await AppwrightSelectors.getElementByXpath(this._device, `//android.view.ViewGroup[@content-desc="."]`);
-          await numberKey.tap();
-        }
-      }
-      else {
-      // comprobar para iOS
-      }
+        const numberKey = await AppwrightSelectors.getElementByCatchAll(this._device, digit);
+        await numberKey.tap();
     });
   }
 
@@ -119,11 +109,6 @@ class SwapScreen {
   async enterDestinationTokenAmount(amount) {
     const element = await this.destTokenInput;
     await element.fill(amount);
-  }
-
-  async isVisible() {
-    const element = await this.sourceTokenInput;
-    await appwrightExpect(element).toBeVisible({ timeout: 10000 });
   }
 }
 

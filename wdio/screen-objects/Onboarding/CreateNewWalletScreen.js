@@ -142,7 +142,7 @@ class CreateNewWalletScreen{
 
   async isNewAccountScreenFieldsVisible() {
     if (!this._device) {
-      await expect(this.newWalletPasswordField).toBeVisible();
+      await expect(this.newWalletPasswordField).toBeDisplayed();
     } else {
       const element = await this.newWalletPasswordField;
       await expect(element).toBeVisible();

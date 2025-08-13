@@ -12,7 +12,6 @@ import {
 import { TRANSACTION_AMOUNT_INPUT } from './testIDs/Screens/AmountScreen.testIds.js';
 import AppwrightSelectors from '../helpers/AppwrightSelectors';
 import { SendViewSelectorsIDs } from '../../e2e/selectors/SendFlow/SendView.selectors.js';
-import { expect as appwrightExpect } from 'appwright';
 
 class SendScreen {
   get device() {
@@ -24,11 +23,7 @@ class SendScreen {
   }
 
   get container() {
-    if (!this._device) {
-      return Selectors.getElementByPlatform(SEND_SCREEN_ID);
-    } else {
-      return AppwrightSelectors.getElementByID(this._device, SEND_SCREEN_ID);
-    }
+    return Selectors.getElementByPlatform(SEND_SCREEN_ID);
   }
 
   get sendAddressInputField() {
@@ -85,11 +80,6 @@ class SendScreen {
     await expect(this.understandWarningcontinue).toBeDisplayed();
   }
 
-  async isVisible() {
-    const element = await this.container;
-    await appwrightExpect(element).toBeVisible();
-  }
-
   async tapAddAddressButton() {
     await Gestures.tapTextByXpath(this.addAddressButton);
   }
@@ -99,13 +89,8 @@ class SendScreen {
   }
 
   async isAmountScreenDisplayed() {
-    if (!this._device) {
-      const amountScreen = await this.amountScreen;
-      await amountScreen.waitForDisplayed();
-    } else {
-      const element = await AppwrightSelectors.getElementByID(this._device, AMOUNT_SCREEN);
-      await appwrightExpect(element).toBeVisible();
-    }
+    const amountScreen = await this.amountScreen;
+    await amountScreen.waitForDisplayed();
   }
 
   async isChangedContactNameVisible(contactName) {

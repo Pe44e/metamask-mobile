@@ -69,15 +69,8 @@ jobs:
           # Generate device matrix using a simpler approach
           echo "Generating device matrix..."
           
-          # Create the matrix directly from the JSON file
-          MATRIX_JSON=$(jq -c '
-            {
-              device: (
-                (.android_devices[] | {name: .name, os_version: .os_version, category: .category, platform: "android"}) +
-                (.ios_devices[] | {name: .name, os_version: .os_version, category: .category, platform: "ios"})
-              )
-            }
-          ' appwright/device-matrix.json)
+          # Create the matrix using the working JQ command that concatenates arrays and maps platform
+          MATRIX_JSON=$(jq -c '{ device: (.android_devices + .ios_devices | map({name: .name, os_version: .os_version, category: .category, platform: (if .os_version | test("^[0-9]+$") then "ios" else "android" end)})) }' appwright/device-matrix.json)
           
           # Validate the generated matrix
           if ! echo "$MATRIX_JSON" | jq . > /dev/null 2>&1; then

@@ -111,7 +111,7 @@ jobs:
           echo "Category: ${{ matrix.device.category }}"
           echo "Branch: ${{ github.ref_name }}"
           
-          yarn run-appwright:browserstack-android
+          yarn run-appwright:android-bs
       
       - name: Upload Android Test Results
         uses: actions/upload-artifact@v4
@@ -203,7 +203,7 @@ jobs:
             echo "Warning: iOS ${{ matrix.device.os_version }} may not be supported by MetaMask app"
           fi
           
-          yarn run-appwright:browserstack-ios
+          yarn run-appwright:ios-bs
       
       - name: Upload iOS Test Results
         uses: actions/upload-artifact@v4

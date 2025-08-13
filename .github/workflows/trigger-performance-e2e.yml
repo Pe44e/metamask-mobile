@@ -37,7 +37,8 @@ jobs:
     name: Generate Device Matrix
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.device-matrix.outputs.matrix }}
+      android-matrix: ${{ steps.device-matrix.outputs.android-matrix }}
+      ios-matrix: ${{ steps.device-matrix.outputs.ios-matrix }}
     
     steps:
       - name: Checkout code
@@ -66,40 +67,47 @@ jobs:
             exit 1
           fi
           
-          # Generate device matrix using a simpler approach
-          echo "Generating device matrix..."
+          # Generate separate matrices for Android and iOS
+          echo "Generating Android device matrix..."
+          ANDROID_MATRIX=$(jq -c '{ device: [.android_devices[] | {name: .name, os_version: .os_version, category: .category, platform: "android"}] }' appwright/device-matrix.json)
           
-          # Create the matrix using the working JQ command that concatenates arrays and maps platform
-          MATRIX_JSON=$(jq -c '{ device: (.android_devices + .ios_devices | map({name: .name, os_version: .os_version, category: .category, platform: (if .os_version | test("^[0-9]+$") then "ios" else "android" end)})) }' appwright/device-matrix.json)
+          echo "Generating iOS device matrix..."
+          IOS_MATRIX=$(jq -c '{ device: [.ios_devices[] | {name: .name, os_version: .os_version, category: .category, platform: "ios"}] }' appwright/device-matrix.json)
           
-          # Validate the generated matrix
-          if ! echo "$MATRIX_JSON" | jq . > /dev/null 2>&1; then
-            echo "Error: Failed to generate valid matrix JSON"
-            echo "Generated matrix: $MATRIX_JSON"
+          # Validate the generated matrices
+          if ! echo "$ANDROID_MATRIX" | jq . > /dev/null 2>&1; then
+            echo "Error: Failed to generate valid Android matrix JSON"
+            echo "Generated matrix: $ANDROID_MATRIX"
             exit 1
           fi
           
-          # Output the matrix for GitHub Actions
-          echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
+          if ! echo "$IOS_MATRIX" | jq . > /dev/null 2>&1; then
+            echo "Error: Failed to generate valid iOS matrix JSON"
+            echo "Generated matrix: $IOS_MATRIX"
+            exit 1
+          fi
           
-          echo "Device matrix generated successfully:"
-          echo "$MATRIX_JSON" | jq -r '.device[] | "\(.platform): \(.name) (\(.category)) - \(.os_version)"'
+          # Output the matrices for GitHub Actions
+          echo "android-matrix=$ANDROID_MATRIX" >> $GITHUB_OUTPUT
+          echo "ios-matrix=$IOS_MATRIX" >> $GITHUB_OUTPUT
+          
+          echo "Device matrices generated successfully:"
+          echo "Android devices:"
+          echo "$ANDROID_MATRIX" | jq -r '.device[] | "  \(.name) (\(.category)) - \(.os_version)"'
+          echo "iOS devices:"
+          echo "$IOS_MATRIX" | jq -r '.device[] | "  \(.name) (\(.category)) - \(.os_version)"'
           
           # Count devices for verification
-          DEVICE_COUNT=$(echo "$MATRIX_JSON" | jq '.device | length')
-          echo "Total devices: $DEVICE_COUNT"
+          ANDROID_COUNT=$(echo "$ANDROID_MATRIX" | jq '.device | length')
+          IOS_COUNT=$(echo "$IOS_MATRIX" | jq '.device | length')
+          TOTAL_COUNT=$((ANDROID_COUNT + IOS_COUNT))
           
-          # Verify we have devices for both platforms
-          ANDROID_COUNT=$(echo "$DEVICE_MATRIX" | jq '.android_devices | length')
-          IOS_COUNT=$(echo "$DEVICE_MATRIX" | jq '.ios_devices | length')
+          echo "Total devices: $TOTAL_COUNT (Android: $ANDROID_COUNT, iOS: $IOS_COUNT)"
           
           if [ "$ANDROID_COUNT" -eq 0 ] && [ "$IOS_COUNT" -eq 0 ]; then
             echo "Error: No devices found in matrix!"
             exit 1
           fi
-          
-          echo "Android devices: $ANDROID_COUNT"
-          echo "iOS devices: $IOS_COUNT"
 
   # Run Tests on Android Devices
   run-android-tests:
@@ -109,7 +117,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        device: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+        device: ${{ fromJson(needs.generate-matrix.outputs.android-matrix) }}
     
     steps:
       - name: Checkout code
@@ -146,7 +154,6 @@ jobs:
           echo "BrowserStack Local should be ready now"
       
       - name: Run Tests on ${{ matrix.device.name }}
-        if: matrix.device.platform == 'android'
         env:
           BROWSERSTACK_LOCAL: true
           BROWSERSTACK_LOCAL_IDENTIFIER: ${{ github.run_id }}
@@ -163,7 +170,7 @@ jobs:
           yarn run-appwright:android-bs
       
       - name: Upload Test Results
-        if: always() && matrix.device.platform == 'android'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: android-test-results-${{ matrix.device.name }}-${{ matrix.device.os_version }}
@@ -180,7 +187,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        device: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+        device: ${{ fromJson(needs.generate-matrix.outputs.ios-matrix) }}
     
     steps:
       - name: Checkout code
@@ -217,7 +224,6 @@ jobs:
           echo "BrowserStack Local should be ready now"
       
       - name: Run Tests on ${{ matrix.device.name }}
-        if: matrix.device.platform == 'ios'
         env:
           BROWSERSTACK_LOCAL: true
           BROWSERSTACK_LOCAL_IDENTIFIER: ${{ github.run_id }}
@@ -238,7 +244,7 @@ jobs:
           yarn run-appwright:ios-bs
         
       - name: Upload Test Results
-        if: always() && matrix.device.platform == 'ios'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ios-test-results-${{ matrix.device.name }}-${{ matrix.device.os_version }}

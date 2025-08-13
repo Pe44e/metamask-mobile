@@ -61,9 +61,7 @@ test('Import SRPs', async ({ device }, testInfo) => {
   await OnboardingScreen.isScreenTitleVisible();
   screen2Timer.stop();
   await OnboardingScreen.tapHaveAnExistingWallet();
-  if (SEEDLESS_ONBOARDING_ENABLED) {
     await OnboardingSheet.tapImportSeedButton();
-  }
   const screen4Timer = new TimerHelper(
     'Time until the user import the SRP and password appears',
   );

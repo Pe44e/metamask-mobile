@@ -57,9 +57,7 @@ test('Send flow - Ethereum', async ({ device }, testInfo) => {
 
   await OnboardingScreen.isScreenTitleVisible();
   await OnboardingScreen.tapHaveAnExistingWallet();
-  if (SEEDLESS_ONBOARDING_ENABLED) {
     await OnboardingSheet.tapImportSeedButton();
-  }
   await ImportFromSeedScreen.isScreenTitleVisible();
   await ImportFromSeedScreen.typeSecretRecoveryPhrase(
     process.env.TEST_SRP_1,

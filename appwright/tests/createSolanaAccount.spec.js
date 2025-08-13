@@ -51,9 +51,7 @@ test('User creates a new Solana account after onboarding', async ({
 
   await OnboardingScreen.isScreenTitleVisible();
   await OnboardingScreen.tapCreateNewWalletButton();
-  if (SEEDLESS_ONBOARDING_ENABLED) {
     await OnboardingSheet.tapImportSeedButton();
-  }
   await CreateNewWalletScreen.isNewAccountScreenFieldsVisible();
 
   await CreateNewWalletScreen.inputPasswordInFirstField('123456789');

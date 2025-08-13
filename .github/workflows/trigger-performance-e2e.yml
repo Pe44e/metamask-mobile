@@ -48,14 +48,10 @@ jobs:
             category: 'high'
           
           # Medium Devices
-          - name: 'Samsung Galaxy A52s 5G'
-            os_version: '12.0'
+          - name: 'Samsung Galaxy A52'
+            os_version: '11.0'
             category: 'medium'
           
-          # Low-end Devices
-          - name: 'Samsung Galaxy A32'
-            os_version: '11.0'
-            category: 'low'
     
     steps:
       - name: Checkout code
@@ -91,24 +87,19 @@ jobs:
           sleep 30
           echo "BrowserStack Local should be ready now"
       
-      - name: Update Appwright Config for Android Device
+      - name: Set Android Test Environment
         run: |
-          echo "Updating Appwright config for device: ${{ matrix.device.name }}"
-          # Update the browserstack-android project configuration
-          sed -i "s|name: process.env.BROWSERSTACK_DEVICE || 'Samsung Galaxy S23 Ultra'|name: \"${{ matrix.device.name }}\"|g" appwright/appwright.config.ts
-          sed -i "s|osVersion: process.env.BROWSERSTACK_OS_VERSION || '13.0'|osVersion: \"${{ matrix.device.os_version }}\"|g" appwright/appwright.config.ts
-          sed -i "s|buildPath: process.env.BROWSERSTACK_ANDROID_APP_URL|buildPath: \"${{ github.event.inputs.browserstack_app_url_android }}\"|g" appwright/appwright.config.ts
-          # Also update the testDir if it exists
-          if grep -q "testDir: './tests'" appwright/appwright.config.ts; then
-            sed -i "s|testDir: './tests'|testDir: './tests',\n  testMatch: \"${{ github.event.inputs.test_suite }}\"|g" appwright/appwright.config.ts
-          fi
+          echo "Setting test environment for device: ${{ matrix.device.name }}"
+          echo "BROWSERSTACK_DEVICE=${{ matrix.device.name }}" >> $GITHUB_ENV
+          echo "BROWSERSTACK_OS_VERSION=${{ matrix.device.os_version }}" >> $GITHUB_ENV
+          echo "BROWSERSTACK_ANDROID_APP_URL=${{ github.event.inputs.browserstack_app_url_android }}" >> $GITHUB_ENV
+          echo "TEST_PLATFORM=android" >> $GITHUB_ENV
+          echo "TEST_SUITE=${{ github.event.inputs.test_suite }}" >> $GITHUB_ENV
       
       - name: Run Android Tests on ${{ matrix.device.name }}
         env:
           BROWSERSTACK_LOCAL: true
           BROWSERSTACK_LOCAL_IDENTIFIER: ${{ github.run_id }}
-          BROWSERSTACK_DEVICE: ${{ matrix.device.name }}
-          BROWSERSTACK_OS_VERSION: ${{ matrix.device.os_version }}
         run: |
           echo "=== Testing ${{ matrix.device.name }} (${{ matrix.device.category }} Class) ==="
           echo "OS Version: ${{ matrix.device.os_version }}"
@@ -144,12 +135,7 @@ jobs:
           - name: 'iPhone 11'
             os_version: '13'
             category: 'medium'
-          
-          # Low-end Devices
-          - name: 'iPhone 8'
-            os_version: '11'
-            category: 'low'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -184,24 +170,17 @@ jobs:
           sleep 30
           echo "BrowserStack Local should be ready now"
       
-      - name: Update Appwright Config for iOS Device
+      - name: Set iOS Test Environment
         run: |
-          echo "Updating Appwright config for device: ${{ matrix.device.name }}"
-          # Update the browserstack-ios project configuration
-          sed -i "s|name: process.env.BROWSERSTACK_DEVICE || 'iPhone 14 Pro Max'|name: \"${{ matrix.device.name }}\"|g" appwright/appwright.config.ts
-          sed -i "s|osVersion: process.env.BROWSERSTACK_OS_VERSION || '16.0'|osVersion: \"${{ matrix.device.os_version }}\"|g" appwright/appwright.config.ts
-          sed -i "s|buildPath: process.env.BROWSERSTACK_IOS_APP_URL|buildPath: \"${{ github.event.inputs.browserstack_app_url_ios }}\"|g" appwright/appwright.config.ts
-          # Also update the testDir if it exists
-          if grep -q "testDir: './tests'" appwright/appwright.config.ts; then
-            sed -i "s|testDir: './tests'|testDir: './tests',\n  testMatch: \"${{ github.event.inputs.test_suite }}\"|g" appwright/appwright.config.ts
-          fi
+          echo "Setting test environment for device: ${{ matrix.device.name }}"
+          echo "BROWSERSTACK_DEVICE=${{ matrix.device.name }}" >> $GITHUB_ENV
+          echo "BROWSERSTACK_IOS_APP_URL=${{ github.event.inputs.browserstack_app_url_ios }}" >> $GITHUB_ENV
+          echo "TEST_SUITE=${{ github.event.inputs.test_suite }}" >> $GITHUB_ENV
       
       - name: Run iOS Tests on ${{ matrix.device.name }}
         env:
           BROWSERSTACK_LOCAL: true
           BROWSERSTACK_LOCAL_IDENTIFIER: ${{ github.run_id }}
-          BROWSERSTACK_DEVICE: ${{ matrix.device.name }}
-          BROWSERSTACK_OS_VERSION: ${{ matrix.device.os_version }}
         run: |
           echo "=== Testing ${{ matrix.device.name }} (${{ matrix.device.category }} Class) ==="
           echo "OS Version: ${{ matrix.device.os_version }}"

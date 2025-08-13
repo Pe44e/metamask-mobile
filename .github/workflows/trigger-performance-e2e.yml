@@ -29,6 +29,9 @@ env:
   BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
   BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
   MM_TEST_ACCOUNT_SRP: ${{ secrets.MM_TEST_ACCOUNT_SRP }}
+  TEST_SRP_1: ${{ secrets.TEST_SRP_1 }}
+  TEST_SRP_2: ${{ secrets.TEST_SRP_2 }}
+  TEST_SRP_3: ${{ secrets.TEST_SRP_3 }}
 
 jobs:
   # Sequential Android Tests on Multiple Devices

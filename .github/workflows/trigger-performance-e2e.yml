@@ -63,23 +63,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Triggering Bitrise QA builds..."
+          echo "BITRISE_APP_ID: $BITRISE_APP_ID"
+          echo "Current branch: ${{ github.ref_name }}"
           
-          # Trigger Android QA build
-          ANDROID_RESPONSE=$(curl -s -X POST \
+          # Trigger QA builds pipeline (handles both Android and iOS)
+          BUILD_RESPONSE=$(curl -s -X POST \
             "https://app.bitrise.io/app/$BITRISE_APP_ID/build/start.json" \
             -H "Content-Type: application/json" \
-            -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
             -d '{
               "build_params": {
                 "branch": "main",
                 "pipeline_id": "create_qa_builds_pipeline",
-                "environments": [
-                  {
-                    "mapped_to": "PLATFORM",
-                    "value": "android",
-                    "is_expand": true
-                  }
-                ],
                 "commit_message": "Triggered by Performance E2E workflow"
               },
               "hook_info": {
@@ -89,60 +83,37 @@ jobs:
               "triggered_by": "GitHub Actions Performance E2E"
             }')
           
-          ANDROID_BUILD_SLUG=$(echo "$ANDROID_RESPONSE" | jq -r '.build_slug')
-          echo "Android build slug: $ANDROID_BUILD_SLUG"
+          echo "Build response: $BUILD_RESPONSE"
+          BUILD_SLUG=$(echo "$BUILD_RESPONSE" | jq -r '.build_slug')
+          echo "Build slug: $BUILD_SLUG"
           
-          # Trigger iOS QA build
-          IOS_RESPONSE=$(curl -s -X POST \
-            "https://app.bitrise.io/app/$BITRISE_APP_ID/build/start.json" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
-            -d '{
-              "build_params": {
-                "branch": "main",
-                "pipeline_id": "create_qa_builds_pipeline",
-                "environments": [
-                  {
-                    "mapped_to": "PLATFORM",
-                    "value": "ios",
-                    "is_expand": true
-                  }
-                ],
-                "commit_message": "Triggered by Performance E2E workflow"
-              },
-              "hook_info": {
-                "type": "bitrise",
-                "build_trigger_token": "'$BITRISE_BUILD_TRIGGER_TOKEN'"
-              },
-              "triggered_by": "GitHub Actions Performance E2E"
-            }')
+          if [[ -z "$BUILD_SLUG" || "$BUILD_SLUG" == "null" ]]; then
+            echo "Error: Failed to get build slug"
+            echo "Full response: $BUILD_RESPONSE"
+            exit 1
+          fi
           
-          IOS_BUILD_SLUG=$(echo "$IOS_RESPONSE" | jq -r '.build_slug')
-          echo "iOS build slug: $IOS_BUILD_SLUG"
+          # Store build slug for artifact download
+          echo "BUILD_SLUG=$BUILD_SLUG" >> $GITHUB_ENV
           
-          # Wait for builds to complete (with timeout)
-          echo "Waiting for builds to complete..."
+          # Wait for build to complete (with timeout)
+          echo "Waiting for build to complete..."
           TIMEOUT=1200  # 20 minutes
           ELAPSED=0
           
           while [ $ELAPSED -lt $TIMEOUT ]; do
-            # Check Android build status
-            ANDROID_STATUS=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
-              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$ANDROID_BUILD_SLUG" | \
+            # Check build status
+            BUILD_STATUS=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
+              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$BUILD_SLUG" | \
               jq -r '.data.status')
             
-            # Check iOS build status
-            IOS_STATUS=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
-              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$IOS_BUILD_SLUG" | \
-              jq -r '.data.status')
+            echo "Build status: $BUILD_STATUS"
             
-            echo "Android build status: $ANDROID_STATUS, iOS build status: $IOS_STATUS"
-            
-            if [ "$ANDROID_STATUS" = "1" ] && [ "$IOS_STATUS" = "1" ]; then
-              echo "Both builds completed successfully!"
+            if [ "$BUILD_STATUS" = "1" ]; then
+              echo "Build completed successfully!"
               break
-            elif [ "$ANDROID_STATUS" = "2" ] || [ "$IOS_STATUS" = "2" ]; then
-              echo "One or both builds failed!"
+            elif [ "$BUILD_STATUS" = "2" ]; then
+              echo "Build failed!"
               exit 1
             fi
             
@@ -151,13 +122,9 @@ jobs:
           done
           
           if [ $ELAPSED -ge $TIMEOUT ]; then
-            echo "Timeout waiting for builds to complete"
+            echo "Timeout waiting for build to complete"
             exit 1
           fi
-          
-          # Store build slugs for artifact download
-          echo "ANDROID_BUILD_SLUG=$ANDROID_BUILD_SLUG" >> $GITHUB_ENV
-          echo "IOS_BUILD_SLUG=$IOS_BUILD_SLUG" >> $GITHUB_ENV
       
       - name: Download Build Artifacts
         id: download-artifacts
@@ -169,7 +136,7 @@ jobs:
           
           # Download Android APK
           ANDROID_ARTIFACTS=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
-            "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$ANDROID_BUILD_SLUG/artifacts")
+            "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$BUILD_SLUG/artifacts")
           
           ANDROID_APK_ARTIFACT=$(echo "$ANDROID_ARTIFACTS" | jq -r '.data[] | 
             select(.artifact_type == "android-apk" and (.title | startswith("metamask-qa-prod")))')
@@ -177,7 +144,7 @@ jobs:
           if [[ -n "$ANDROID_APK_ARTIFACT" ]]; then
             ANDROID_ARTIFACT_SLUG=$(echo "$ANDROID_APK_ARTIFACT" | jq -r '.slug')
             ANDROID_DETAILS=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
-              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$ANDROID_BUILD_SLUG/artifacts/$ANDROID_ARTIFACT_SLUG")
+              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$BUILD_SLUG/artifacts/$ANDROID_ARTIFACT_SLUG")
             
             ANDROID_VERSION=$(echo "$ANDROID_DETAILS" | jq -r '.data.artifact_meta.app_info.version')
             ANDROID_DOWNLOAD_URL=$(echo "$ANDROID_DETAILS" | jq -r '.data.expiring_download_url')
@@ -195,7 +162,7 @@ jobs:
           
           # Download iOS IPA
           IOS_ARTIFACTS=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
-            "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$IOS_BUILD_SLUG/artifacts")
+            "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$BUILD_SLUG/artifacts")
           
           IOS_IPA_ARTIFACT=$(echo "$IOS_ARTIFACTS" | jq -r '.data[] | 
             select(.artifact_type == "ios-ipa" and (.title | startswith("metamask-device-qa-prod")))')
@@ -203,7 +170,7 @@ jobs:
           if [[ -n "$IOS_IPA_ARTIFACT" ]]; then
             IOS_ARTIFACT_SLUG=$(echo "$IOS_IPA_ARTIFACT" | jq -r '.slug')
             IOS_DETAILS=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
-              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$IOS_BUILD_SLUG/artifacts/$IOS_ARTIFACT_SLUG")
+              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$BUILD_SLUG/artifacts/$IOS_ARTIFACT_SLUG")
             
             IOS_VERSION=$(echo "$IOS_DETAILS" | jq -r '.data.artifact_meta.app_info.version')
             IOS_DOWNLOAD_URL=$(echo "$IOS_DETAILS" | jq -r '.data.expiring_download_url')

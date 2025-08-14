@@ -134,7 +134,7 @@ class WalletMainScreen {
     if (!this._device) {
       await Gestures.waitAndTap(this.accountIcon);
     } else {
-      const isAndroid = await AppwrightSelectors.isAndroid(this._device);
+      const isAndroid = AppwrightSelectors.isAndroid(this._device);
       
       let tokenName;
       if (isAndroid) {
@@ -146,6 +146,17 @@ class WalletMainScreen {
       }
       
       await tokenName.tap();
+    }
+  }
+
+  async isTokenVisible(token) {
+    const isAndroid = AppwrightSelectors.isAndroid(this._device);
+    if (isAndroid) {
+      const tokenName = await AppwrightSelectors.getElementByID(this._device, `asset-${token}`);
+      await tokenName.isVisible();
+    } else {
+      const tokenName = await AppwrightSelectors.getElementByCatchAll(this._device, token);
+      await tokenName.isVisible();
     }
   }
 

@@ -29,19 +29,16 @@ env:
   TEST_SRP_1: ${{ secrets.TEST_SRP_1 }}
   TEST_SRP_2: ${{ secrets.TEST_SRP_2 }}
   TEST_SRP_3: ${{ secrets.TEST_SRP_3 }}
-  BITRISE_APP_ID: ${{ secrets.BITRISE_APP_ID }}
-  BITRISE_BUILD_TRIGGER_TOKEN: ${{ secrets.BITRISE_BUILD_TRIGGER_TOKEN }}
 
 jobs:
   # Combined job to trigger QA builds, download artifacts, and upload to BrowserStack
   trigger-qa-builds-and-upload:
     name: Trigger QA Builds and Upload to BrowserStack
     runs-on: ubuntu-latest
-    outputs:
-      android-version: ${{ steps.download-artifacts.outputs.android-version }}
-      ios-version: ${{ steps.download-artifacts.outputs.ios-version }}
-      browserstack-android-url: ${{ steps.upload-to-browserstack.outputs.browserstack-android-url }}
-      browserstack-ios-url: ${{ steps.upload-to-browserstack.outputs.browserstack-ios-url }}
+    env:
+      BITRISE_APP_ID: ${{ secrets.BITRISE_APP_ID }}
+      BITRISE_BUILD_TRIGGER_TOKEN: ${{ secrets.BITRISE_BUILD_TRIGGER_TOKEN }}
+      BITRISE_API_TOKEN: ${{ secrets.BITRISE_API_TOKEN }}
     
     steps:
       - name: Checkout code
@@ -102,8 +99,9 @@ jobs:
           ELAPSED=0
           
           while [ $ELAPSED -lt $TIMEOUT ]; do
+            # Check build status using the correct v0.1 API endpoint
             echo "Checking build status for slug: $BUILD_SLUG"
-            STATUS_RESPONSE=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
+            STATUS_RESPONSE=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
               "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$BUILD_SLUG")
             echo "Status response: $STATUS_RESPONSE"
             
@@ -121,7 +119,7 @@ jobs:
             elif [ "$BUILD_STATUS" = "null" ]; then
               echo "Build status is null, checking if build exists..."
               # Try to get build info to see if it exists
-              BUILD_INFO=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
+              BUILD_INFO=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
                 "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$BUILD_SLUG")
               echo "Build info response: $BUILD_INFO"
             fi
@@ -141,12 +139,12 @@ jobs:
         id: download-artifacts
         env:
           BITRISE_APP_ID: ${{ env.BITRISE_APP_ID }}
-          BITRISE_BUILD_TRIGGER_TOKEN: ${{ env.BITRISE_BUILD_TRIGGER_TOKEN }}
+          BITRISE_API_TOKEN: ${{ env.BITRISE_API_TOKEN }}
         run: |
           echo "Downloading build artifacts..."
           
           # Download Android APK
-          ANDROID_ARTIFACTS=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
+          ANDROID_ARTIFACTS=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
             "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$BUILD_SLUG/artifacts")
           echo "Android artifacts response: $ANDROID_ARTIFACTS"
           
@@ -155,7 +153,7 @@ jobs:
           
           if [[ -n "$ANDROID_APK_ARTIFACT" ]]; then
             ANDROID_ARTIFACT_SLUG=$(echo "$ANDROID_APK_ARTIFACT" | jq -r '.slug')
-            ANDROID_DETAILS=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
+            ANDROID_DETAILS=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
               "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$BUILD_SLUG/artifacts/$ANDROID_ARTIFACT_SLUG")
             
             ANDROID_VERSION=$(echo "$ANDROID_DETAILS" | jq -r '.data.artifact_meta.app_info.version')
@@ -173,7 +171,7 @@ jobs:
           fi
           
           # Download iOS IPA
-          IOS_ARTIFACTS=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
+          IOS_ARTIFACTS=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
             "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$BUILD_SLUG/artifacts")
           echo "iOS artifacts response: $IOS_ARTIFACTS"
           
@@ -182,7 +180,7 @@ jobs:
           
           if [[ -n "$IOS_IPA_ARTIFACT" ]]; then
             IOS_ARTIFACT_SLUG=$(echo "$IOS_IPA_ARTIFACT" | jq -r '.slug')
-            IOS_DETAILS=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
+            IOS_DETAILS=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
               "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$BUILD_SLUG/artifacts/$IOS_ARTIFACT_SLUG")
             
             IOS_VERSION=$(echo "$IOS_DETAILS" | jq -r '.data.artifact_meta.app_info.version')
@@ -270,6 +268,21 @@ jobs:
           echo "=== BrowserStack Upload Summary ==="
           echo "Android App URL: $ANDROID_APP_URL"
           echo "iOS App URL: $IOS_APP_URL"
+      
+      - name: Upload Apps as Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-apps
+          path: |
+            *.apk
+            *.ipa
+          retention-days: 1
+    
+    outputs:
+      android-version: ${{ steps.download-artifacts.outputs.android-version }}
+      ios-version: ${{ steps.download-artifacts.outputs.ios-version }}
+      browserstack-android-url: ${{ steps.upload-to-browserstack.outputs.browserstack-android-url }}
+      browserstack-ios-url: ${{ steps.upload-to-browserstack.outputs.browserstack-ios-url }}
 
   # Sequential Android Tests on Multiple Devices
   android-tests:

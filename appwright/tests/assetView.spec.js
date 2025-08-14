@@ -19,7 +19,8 @@ import AccountListComponent from '../../wdio/screen-objects/AccountListComponent
 import AddAccountModal from '../../wdio/screen-objects/Modals/AddAccountModal.js';
 import CommonScreen from '../../wdio/screen-objects/CommonScreen.js';
 import TokenOverviewScreen from '../../wdio/screen-objects/TokenOverviewScreen.js';
-const SEEDLESS_ONBOARDING_ENABLED = process.env.SEEDLESS_ONBOARDING_ENABLED === 'true';
+const SEEDLESS_ONBOARDING_ENABLED =
+  process.env.SEEDLESS_ONBOARDING_ENABLED === 'true';
 
 test('Asset View', async ({ device }, testInfo) => {
   WelcomeScreen.device = device;
@@ -40,7 +41,7 @@ test('Asset View', async ({ device }, testInfo) => {
   TokenOverviewScreen.device = device;
   CommonScreen.device = device;
 
-  device.webDriverClient.capabilities["appium:settings[snapshotMaxDepth]"] = 80;
+  device.webDriverClient.capabilities['appium:settings[snapshotMaxDepth]'] = 80;
 
   await WelcomeScreen.clickGetStartedButton();
 
@@ -51,7 +52,7 @@ test('Asset View', async ({ device }, testInfo) => {
 
   await OnboardingScreen.isScreenTitleVisible();
   await OnboardingScreen.tapHaveAnExistingWallet();
-    await OnboardingSheet.tapImportSeedButton();
+  await OnboardingSheet.tapImportSeedButton();
 
   await ImportFromSeedScreen.isScreenTitleVisible();
   await ImportFromSeedScreen.typeSecretRecoveryPhrase(
@@ -70,7 +71,7 @@ test('Asset View', async ({ device }, testInfo) => {
 
   // await OnboardingSucessScreen.tapDone();
   // await SolanaFeatureSheet.isVisible();
-  await SolanaFeatureSheet.tapNotNowButton();
+  // await SolanaFeatureSheet.tapNotNowButton();
   await WalletMainScreen.isMainWalletViewVisible();
 
   const assetViewScreen = new TimerHelper(

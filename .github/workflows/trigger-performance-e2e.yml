@@ -8,11 +8,11 @@ on:
         type: string
       browserstack_app_url_android:
         description: 'BrowserStack Android App URL (bs://...)'
-        required: true
+        required: false
         type: string
       browserstack_app_url_ios:
         description: 'BrowserStack iOS App URL (bs://...)'
-        required: true
+        required: false
         type: string
       test_suite:
         description: 'Test suite to run (e.g., **/tests/*.spec.js for all tests)'
@@ -29,11 +29,273 @@ env:
   TEST_SRP_1: ${{ secrets.TEST_SRP_1 }}
   TEST_SRP_2: ${{ secrets.TEST_SRP_2 }}
   TEST_SRP_3: ${{ secrets.TEST_SRP_3 }}
+  BITRISE_APP_ID: ${{ secrets.BITRISE_APP_ID }}
+  BITRISE_BUILD_TRIGGER_TOKEN: ${{ secrets.BITRISE_BUILD_TRIGGER_TOKEN }}
+
 jobs:
+  # Combined job to trigger QA builds, download artifacts, and upload to BrowserStack
+  trigger-qa-builds-and-upload:
+    name: Trigger QA Builds and Upload to BrowserStack
+    runs-on: ubuntu-latest
+    outputs:
+      android-version: ${{ steps.download-artifacts.outputs.android-version }}
+      ios-version: ${{ steps.download-artifacts.outputs.ios-version }}
+      browserstack-android-url: ${{ steps.upload-to-browserstack.outputs.browserstack-android-url }}
+      browserstack-ios-url: ${{ steps.upload-to-browserstack.outputs.browserstack-ios-url }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'yarn'
+      
+      - name: Install dependencies
+        run: yarn setup
+      
+      - name: Trigger Bitrise QA Builds
+        env:
+          BITRISE_APP_ID: ${{ env.BITRISE_APP_ID }}
+          BITRISE_BUILD_TRIGGER_TOKEN: ${{ env.BITRISE_BUILD_TRIGGER_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Triggering Bitrise QA builds..."
+          
+          # Trigger Android QA build
+          ANDROID_RESPONSE=$(curl -s -X POST \
+            "https://app.bitrise.io/app/$BITRISE_APP_ID/build/start.json" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
+            -d '{
+              "build_params": {
+                "branch": "main",
+                "pipeline_id": "create_qa_builds_pipeline",
+                "environments": [
+                  {
+                    "mapped_to": "PLATFORM",
+                    "value": "android",
+                    "is_expand": true
+                  }
+                ],
+                "commit_message": "Triggered by Performance E2E workflow"
+              },
+              "hook_info": {
+                "type": "bitrise",
+                "build_trigger_token": "'$BITRISE_BUILD_TRIGGER_TOKEN'"
+              },
+              "triggered_by": "GitHub Actions Performance E2E"
+            }')
+          
+          ANDROID_BUILD_SLUG=$(echo "$ANDROID_RESPONSE" | jq -r '.build_slug')
+          echo "Android build slug: $ANDROID_BUILD_SLUG"
+          
+          # Trigger iOS QA build
+          IOS_RESPONSE=$(curl -s -X POST \
+            "https://app.bitrise.io/app/$BITRISE_APP_ID/build/start.json" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
+            -d '{
+              "build_params": {
+                "branch": "main",
+                "pipeline_id": "create_qa_builds_pipeline",
+                "environments": [
+                  {
+                    "mapped_to": "PLATFORM",
+                    "value": "ios",
+                    "is_expand": true
+                  }
+                ],
+                "commit_message": "Triggered by Performance E2E workflow"
+              },
+              "hook_info": {
+                "type": "bitrise",
+                "build_trigger_token": "'$BITRISE_BUILD_TRIGGER_TOKEN'"
+              },
+              "triggered_by": "GitHub Actions Performance E2E"
+            }')
+          
+          IOS_BUILD_SLUG=$(echo "$IOS_RESPONSE" | jq -r '.build_slug')
+          echo "iOS build slug: $IOS_BUILD_SLUG"
+          
+          # Wait for builds to complete (with timeout)
+          echo "Waiting for builds to complete..."
+          TIMEOUT=1200  # 20 minutes
+          ELAPSED=0
+          
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            # Check Android build status
+            ANDROID_STATUS=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
+              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$ANDROID_BUILD_SLUG" | \
+              jq -r '.data.status')
+            
+            # Check iOS build status
+            IOS_STATUS=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
+              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$IOS_BUILD_SLUG" | \
+              jq -r '.data.status')
+            
+            echo "Android build status: $ANDROID_STATUS, iOS build status: $IOS_STATUS"
+            
+            if [ "$ANDROID_STATUS" = "1" ] && [ "$IOS_STATUS" = "1" ]; then
+              echo "Both builds completed successfully!"
+              break
+            elif [ "$ANDROID_STATUS" = "2" ] || [ "$IOS_STATUS" = "2" ]; then
+              echo "One or both builds failed!"
+              exit 1
+            fi
+            
+            sleep 30
+            ELAPSED=$((ELAPSED + 30))
+          done
+          
+          if [ $ELAPSED -ge $TIMEOUT ]; then
+            echo "Timeout waiting for builds to complete"
+            exit 1
+          fi
+          
+          # Store build slugs for artifact download
+          echo "ANDROID_BUILD_SLUG=$ANDROID_BUILD_SLUG" >> $GITHUB_ENV
+          echo "IOS_BUILD_SLUG=$IOS_BUILD_SLUG" >> $GITHUB_ENV
+      
+      - name: Download Build Artifacts
+        id: download-artifacts
+        env:
+          BITRISE_APP_ID: ${{ env.BITRISE_APP_ID }}
+          BITRISE_BUILD_TRIGGER_TOKEN: ${{ env.BITRISE_BUILD_TRIGGER_TOKEN }}
+        run: |
+          echo "Downloading build artifacts..."
+          
+          # Download Android APK
+          ANDROID_ARTIFACTS=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
+            "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$ANDROID_BUILD_SLUG/artifacts")
+          
+          ANDROID_APK_ARTIFACT=$(echo "$ANDROID_ARTIFACTS" | jq -r '.data[] | 
+            select(.artifact_type == "android-apk" and (.title | startswith("metamask-qa-prod")))')
+          
+          if [[ -n "$ANDROID_APK_ARTIFACT" ]]; then
+            ANDROID_ARTIFACT_SLUG=$(echo "$ANDROID_APK_ARTIFACT" | jq -r '.slug')
+            ANDROID_DETAILS=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
+              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$ANDROID_BUILD_SLUG/artifacts/$ANDROID_ARTIFACT_SLUG")
+            
+            ANDROID_VERSION=$(echo "$ANDROID_DETAILS" | jq -r '.data.artifact_meta.app_info.version')
+            ANDROID_DOWNLOAD_URL=$(echo "$ANDROID_DETAILS" | jq -r '.data.expiring_download_url')
+            
+            echo "Android version: $ANDROID_VERSION"
+            echo "android-version=$ANDROID_VERSION" >> $GITHUB_OUTPUT
+            
+            if [[ -n "$ANDROID_DOWNLOAD_URL" && "$ANDROID_DOWNLOAD_URL" != "null" ]]; then
+              ANDROID_FILENAME="MetaMask-Android-${ANDROID_VERSION}.apk"
+              wget -O "$ANDROID_FILENAME" "$ANDROID_DOWNLOAD_URL"
+              echo "android-app-path=$PWD/$ANDROID_FILENAME" >> $GITHUB_OUTPUT
+              echo "Downloaded Android APK: $ANDROID_FILENAME"
+            fi
+          fi
+          
+          # Download iOS IPA
+          IOS_ARTIFACTS=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
+            "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$IOS_BUILD_SLUG/artifacts")
+          
+          IOS_IPA_ARTIFACT=$(echo "$IOS_ARTIFACTS" | jq -r '.data[] | 
+            select(.artifact_type == "ios-ipa" and (.title | startswith("metamask-device-qa-prod")))')
+          
+          if [[ -n "$IOS_IPA_ARTIFACT" ]]; then
+            IOS_ARTIFACT_SLUG=$(echo "$IOS_IPA_ARTIFACT" | jq -r '.slug')
+            IOS_DETAILS=$(curl -s -H "Authorization: $BITRISE_BUILD_TRIGGER_TOKEN" \
+              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$IOS_BUILD_SLUG/artifacts/$IOS_ARTIFACT_SLUG")
+            
+            IOS_VERSION=$(echo "$IOS_DETAILS" | jq -r '.data.artifact_meta.app_info.version')
+            IOS_DOWNLOAD_URL=$(echo "$IOS_DETAILS" | jq -r '.data.expiring_download_url')
+            
+            echo "iOS version: $IOS_VERSION"
+            echo "ios-version=$IOS_VERSION" >> $GITHUB_OUTPUT
+            
+            if [[ -n "$IOS_DOWNLOAD_URL" && "$IOS_DOWNLOAD_URL" != "null" ]]; then
+              IOS_FILENAME="MetaMask-iOS-${IOS_VERSION}.ipa"
+              wget -O "$IOS_FILENAME" "$IOS_DOWNLOAD_URL"
+              echo "ios-app-path=$PWD/$IOS_FILENAME" >> $GITHUB_OUTPUT
+              echo "Downloaded iOS IPA: $IOS_FILENAME"
+            fi
+          fi
+      
+      - name: Upload Apps to BrowserStack
+        id: upload-to-browserstack
+        env:
+          BROWSERSTACK_USERNAME: ${{ env.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ env.BROWSERSTACK_ACCESS_KEY }}
+        run: |
+          echo "Uploading apps to BrowserStack..."
+          
+          # Use the downloaded APK and IPA files directly
+          APK_FILE="${{ steps.download-artifacts.outputs.android-app-path }}"
+          IPA_FILE="${{ steps.download-artifacts.outputs.ios-app-path }}"
+          
+          if [[ -z "$APK_FILE" ]]; then
+            echo "Error: No APK file path found"
+            exit 1
+          fi
+          
+          if [[ -z "$IPA_FILE" ]]; then
+            echo "Error: No IPA file path found"
+            exit 1
+          fi
+          
+          echo "Using APK: $APK_FILE"
+          echo "Using IPA: $IPA_FILE"
+          
+          # Generate custom IDs for the uploads
+          ANDROID_CUSTOM_ID="metamask-android-qa-$(date +%s)"
+          IOS_CUSTOM_ID="metamask-ios-qa-$(date +%s)"
+          
+          echo "Android Custom ID: $ANDROID_CUSTOM_ID"
+          echo "iOS Custom ID: $IOS_CUSTOM_ID"
+          
+          # Upload Android APK to BrowserStack
+          echo "Uploading Android APK to BrowserStack..."
+          ANDROID_RESPONSE=$(curl -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
+            -X POST "https://api-cloud.browserstack.com/app-automate/upload" \
+            -F "file=@$APK_FILE" \
+            -F 'data={"custom_id": "'$ANDROID_CUSTOM_ID'"}' \
+            -s)
+          
+          ANDROID_APP_URL=$(echo "$ANDROID_RESPONSE" | jq -r '.app_url')
+          if [[ -n "$ANDROID_APP_URL" && "$ANDROID_APP_URL" != "null" ]]; then
+            echo "Android app uploaded successfully: $ANDROID_APP_URL"
+            echo "browserstack-android-url=$ANDROID_APP_URL" >> $GITHUB_OUTPUT
+          else
+            echo "Error: Failed to upload Android app"
+            echo "Response: $ANDROID_RESPONSE"
+            exit 1
+          fi
+          
+          # Upload iOS IPA to BrowserStack
+          echo "Uploading iOS IPA to BrowserStack..."
+          IOS_RESPONSE=$(curl -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
+            -X POST "https://api-cloud.browserstack.com/app-automate/upload" \
+            -F "file=@$IPA_FILE" \
+            -F 'data={"custom_id": "'$IOS_CUSTOM_ID'"}' \
+            -s)
+          
+          IOS_APP_URL=$(echo "$IOS_RESPONSE" | jq -r '.app_url')
+          if [[ -n "$IOS_APP_URL" && "$IOS_APP_URL" != "null" ]]; then
+            echo "iOS app uploaded successfully: $IOS_APP_URL"
+            echo "ios-app-url=$IOS_APP_URL" >> $GITHUB_OUTPUT
+          else
+            echo "Error: Failed to upload iOS app"
+            echo "Response: $IOS_RESPONSE"
+            exit 1
+          fi
+          
+          echo "=== BrowserStack Upload Summary ==="
+          echo "Android App URL: $ANDROID_APP_URL"
+          echo "iOS App URL: $IOS_APP_URL"
+
   # Sequential Android Tests on Multiple Devices
   android-tests:
     name: Android Tests
     runs-on: ubuntu-latest
+    needs: trigger-qa-builds-and-upload
     strategy:
       fail-fast: false
       matrix:
@@ -64,6 +326,7 @@ jobs:
       
       - name: Install dependencies
         run: yarn setup
+      
       - name: BrowserStack Env Setup
         uses: browserstack/github-actions/setup-env@4478e16186f38e5be07721931642e65a028713c3
         with:
@@ -71,6 +334,7 @@ jobs:
           access-key: ${{ env.BROWSERSTACK_ACCESS_KEY }}
           build-name: ${{ github.repository }}-${{ github.ref_name }}-android-${{ matrix.device.name }}-${{ matrix.device.os_version }}-${{ github.run_number }}
           project-name: ${{ github.repository }}
+      
       - name: Setup BrowserStack Local
         uses: browserstack/github-actions/setup-local@4478e16186f38e5be07721931642e65a028713c3
         with:
@@ -89,9 +353,10 @@ jobs:
           echo "Setting test environment for device: ${{ matrix.device.name }}"
           echo "BROWSERSTACK_DEVICE=${{ matrix.device.name }}" >> $GITHUB_ENV
           echo "BROWSERSTACK_OS_VERSION=${{ matrix.device.os_version }}" >> $GITHUB_ENV
-          echo "BROWSERSTACK_ANDROID_APP_URL=${{ github.event.inputs.browserstack_app_url_android }}" >> $GITHUB_ENV
+          echo "BROWSERSTACK_ANDROID_APP_URL=${{ needs.trigger-qa-builds-and-upload.outputs.browserstack-android-url }}" >> $GITHUB_ENV
           echo "TEST_PLATFORM=android" >> $GITHUB_ENV
           echo "TEST_SUITE=${{ github.event.inputs.test_suite }}" >> $GITHUB_ENV
+          echo "QA_APP_VERSION=${{ needs.trigger-qa-builds-and-upload.outputs.android-version }}" >> $GITHUB_ENV
       
       - name: Run Android Tests on ${{ matrix.device.name }}
         env:
@@ -102,6 +367,8 @@ jobs:
           echo "OS Version: ${{ matrix.device.os_version }}"
           echo "Category: ${{ matrix.device.category }}"
           echo "Branch: ${{ github.ref_name }}"
+          echo "QA App Version: ${{ needs.trigger-qa-builds-and-upload.outputs.android-version }}"
+          echo "BrowserStack Android App URL: ${{ needs.trigger-qa-builds-and-upload.outputs.browserstack-android-url }}"
           
           yarn run-appwright:android-bs
       
@@ -115,10 +382,12 @@ jobs:
             appwright/reporters/reports
           if-no-files-found: ignore
           retention-days: 7
+
   # Sequential iOS Tests on Multiple Devices
   ios-tests:
     name: iOS Tests
     runs-on: ubuntu-latest
+    needs: trigger-qa-builds-and-upload
     strategy:
       fail-fast: false
       matrix:
@@ -144,6 +413,7 @@ jobs:
       
       - name: Install dependencies
         run: yarn setup
+      
       - name: BrowserStack Env Setup
         uses: browserstack/github-actions/setup-env@4478e16186f38e5be07721931642e65a028713c3
         with:
@@ -151,6 +421,7 @@ jobs:
           access-key: ${{ env.BROWSERSTACK_ACCESS_KEY }}
           build-name: ${{ github.repository }}-${{ github.ref_name }}-ios-${{ matrix.device.name }}-${{ matrix.device.os_version }}-${{ github.run_number }}
           project-name: ${{ github.repository }}
+      
       - name: Setup BrowserStack Local
         uses: browserstack/github-actions/setup-local@4478e16186f38e5be07721931642e65a028713c3
         with:
@@ -169,8 +440,9 @@ jobs:
           echo "Setting test environment for device: ${{ matrix.device.name }}"
           echo "BROWSERSTACK_DEVICE=${{ matrix.device.name }}" >> $GITHUB_ENV
           echo "BROWSERSTACK_OS_VERSION=${{ matrix.device.os_version }}" >> $GITHUB_ENV
-          echo "BROWSERSTACK_IOS_APP_URL=${{ github.event.inputs.browserstack_app_url_ios }}" >> $GITHUB_ENV
+          echo "BROWSERSTACK_IOS_APP_URL=${{ needs.trigger-qa-builds-and-upload.outputs.browserstack-ios-url }}" >> $GITHUB_ENV
           echo "TEST_SUITE=${{ github.event.inputs.test_suite }}" >> $GITHUB_ENV
+          echo "QA_APP_VERSION=${{ needs.trigger-qa-builds-and-upload.outputs.ios-version }}" >> $GITHUB_ENV
       
       - name: Run iOS Tests on ${{ matrix.device.name }}
         env:
@@ -181,6 +453,8 @@ jobs:
           echo "OS Version: ${{ matrix.device.os_version }}"
           echo "Category: ${{ matrix.device.category }}"
           echo "Branch: ${{ github.ref_name }}"
+          echo "QA App Version: ${{ needs.trigger-qa-builds-and-upload.outputs.ios-version }}"
+          echo "BrowserStack iOS App URL: ${{ needs.trigger-qa-builds-and-upload.outputs.browserstack-ios-url }}"
           if [ "${{ matrix.device.os_version }}" == "13" ] || [ "${{ matrix.device.os_version }}" == "11" ]; then
             echo "Warning: iOS ${{ matrix.device.os_version }} may not be supported by MetaMask app"
           fi
@@ -197,11 +471,12 @@ jobs:
             appwright/reporters/reports
           if-no-files-found: ignore
           retention-days: 7
+
   # Results Gathering Job
   gather-results:
     name: Gather Test Results
     runs-on: ubuntu-latest
-    needs: [android-tests, ios-tests]
+    needs: [trigger-qa-builds-and-upload, android-tests, ios-tests]
     if: always()
     
     steps:
@@ -230,3 +505,13 @@ jobs:
           else
             echo "All test jobs completed successfully!"
           fi
+      
+      - name: Display QA Build Info
+        run: |
+          echo "=== QA Build Information ==="
+          echo "Android Version: ${{ needs.trigger-qa-builds-and-upload.outputs.android-version }}"
+          echo "iOS Version: ${{ needs.trigger-qa-builds-and-upload.outputs.ios-version }}"
+          echo ""
+          echo "=== BrowserStack App URLs ==="
+          echo "Android App URL: ${{ needs.trigger-qa-builds-and-upload.outputs.browserstack-android-url }}"
+          echo "iOS App URL: ${{ needs.trigger-qa-builds-and-upload.outputs.browserstack-ios-url }}"

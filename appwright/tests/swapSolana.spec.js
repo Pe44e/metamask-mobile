@@ -26,7 +26,7 @@ import NetworkEducationModal from '../../wdio/screen-objects/Modals/NetworkEduca
 const SEEDLESS_ONBOARDING_ENABLED =
   process.env.SEEDLESS_ONBOARDING_ENABLED === 'true';
 
-test.only('Swap flow - Solana', async ({ device }, testInfo) => {
+test('Swap flow - Solana', async ({ device }, testInfo) => {
   WelcomeScreen.device = device;
   TermOfUseScreen.device = device;
   OnboardingScreen.device = device;

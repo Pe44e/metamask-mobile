@@ -95,7 +95,7 @@ jobs:
           
           # Wait for build to complete (with timeout)
           echo "Waiting for build to complete..."
-          TIMEOUT=1200  # 20 minutes
+          TIMEOUT=1800  # 30 minutes
           ELAPSED=0
           
           while [ $ELAPSED -lt $TIMEOUT ]; do

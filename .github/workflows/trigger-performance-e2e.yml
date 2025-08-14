@@ -87,7 +87,15 @@ jobs:
           if [[ -z "$BUILD_SLUG" || "$BUILD_SLUG" == "null" ]]; then
             echo "Error: Failed to get build slug"
             echo "Full response: $BUILD_RESPONSE"
-            exit 1
+            echo "Trying alternative response structure..."
+            # Try different possible response structures
+            BUILD_SLUG=$(echo "$BUILD_RESPONSE" | jq -r '.data.build_slug // .build_slug // .slug')
+            echo "Alternative build slug: $BUILD_SLUG"
+            if [[ -z "$BUILD_SLUG" || "$BUILD_SLUG" == "null" ]]; then
+              echo "Still no build slug found. Response keys:"
+              echo "$BUILD_RESPONSE" | jq -r 'keys[]'
+              exit 1
+            fi
           fi
           
           # Store build slug for artifact download
@@ -99,29 +107,29 @@ jobs:
           ELAPSED=0
           
           while [ $ELAPSED -lt $TIMEOUT ]; do
-            # Check build status using the correct v0.1 API endpoint
-            echo "Checking build status for slug: $BUILD_SLUG"
-            STATUS_RESPONSE=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
-              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$BUILD_SLUG")
-            echo "Status response: $STATUS_RESPONSE"
+            # Check pipeline status using the correct v0.1 API endpoint
+            echo "Checking pipeline status for slug: $BUILD_SLUG"
+            PIPELINE_RESPONSE=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
+              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/pipelines/$BUILD_SLUG")
+            echo "Pipeline response: $PIPELINE_RESPONSE"
             
-            BUILD_STATUS=$(echo "$STATUS_RESPONSE" | jq -r '.data.status')
-            echo "Build status: $BUILD_STATUS"
+            PIPELINE_STATUS=$(echo "$PIPELINE_RESPONSE" | jq -r '.status')
+            echo "Pipeline status: $PIPELINE_STATUS"
             
-            if [ "$BUILD_STATUS" = "1" ]; then
-              echo "Build completed successfully!"
+            if [ "$PIPELINE_STATUS" = "succeeded" ]; then
+              echo "Pipeline completed successfully!"
               break
-            elif [ "$BUILD_STATUS" = "2" ]; then
-              echo "Build failed!"
+            elif [ "$PIPELINE_STATUS" = "failed" ]; then
+              echo "Pipeline failed!"
               exit 1
-            elif [ "$BUILD_STATUS" = "0" ]; then
-              echo "Build is in progress..."
-            elif [ "$BUILD_STATUS" = "null" ]; then
-              echo "Build status is null, checking if build exists..."
-              # Try to get build info to see if it exists
-              BUILD_INFO=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
-                "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$BUILD_SLUG")
-              echo "Build info response: $BUILD_INFO"
+            elif [ "$PIPELINE_STATUS" = "in_progress" ] || [ "$PIPELINE_STATUS" = "running" ]; then
+              echo "Pipeline is in progress..."
+            elif [ "$PIPELINE_STATUS" = "null" ]; then
+              echo "Pipeline status is null, checking if pipeline exists..."
+              # Try to get pipeline info to see if it exists
+              PIPELINE_INFO=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
+                "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/pipelines/$BUILD_SLUG")
+              echo "Pipeline info response: $PIPELINE_INFO"
             fi
             
             sleep 30
@@ -129,11 +137,33 @@ jobs:
           done
           
           if [ $ELAPSED -ge $TIMEOUT ]; then
-            echo "Timeout waiting for build to complete"
-            echo "Final build status: $BUILD_STATUS"
-            echo "Build slug: $BUILD_SLUG"
+            echo "Timeout waiting for pipeline to complete"
+            echo "Final pipeline status: $PIPELINE_STATUS"
+            echo "Pipeline slug: $BUILD_SLUG"
             exit 1
           fi
+          
+          # Extract build IDs from the completed pipeline
+          echo "Extracting build IDs from completed pipeline..."
+          ANDROID_BUILD_ID=$(echo "$PIPELINE_RESPONSE" | jq -r '.stages[0].workflows[] | select(.name == "build_android_qa") | .external_id')
+          IOS_BUILD_ID=$(echo "$PIPELINE_RESPONSE" | jq -r '.stages[0].workflows[] | select(.name == "build_ios_qa") | .external_id')
+          
+          echo "Android build ID: $ANDROID_BUILD_ID"
+          echo "iOS build ID: $IOS_BUILD_ID"
+          
+          if [[ -z "$ANDROID_BUILD_ID" || "$ANDROID_BUILD_ID" == "null" ]]; then
+            echo "Error: Failed to get Android build ID"
+            exit 1
+          fi
+          
+          if [[ -z "$IOS_BUILD_ID" || "$IOS_BUILD_ID" == "null" ]]; then
+            echo "Error: Failed to get iOS build ID"
+            exit 1
+          fi
+          
+          # Store build IDs for artifact download
+          echo "ANDROID_BUILD_ID=$ANDROID_BUILD_ID" >> $GITHUB_ENV
+          echo "IOS_BUILD_ID=$IOS_BUILD_ID" >> $GITHUB_ENV
       
       - name: Download Build Artifacts
         id: download-artifacts
@@ -145,7 +175,7 @@ jobs:
           
           # Download Android APK
           ANDROID_ARTIFACTS=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
-            "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$BUILD_SLUG/artifacts")
+            "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$ANDROID_BUILD_ID/artifacts")
           echo "Android artifacts response: $ANDROID_ARTIFACTS"
           
           ANDROID_APK_ARTIFACT=$(echo "$ANDROID_ARTIFACTS" | jq -r '.data[] | 
@@ -154,7 +184,7 @@ jobs:
           if [[ -n "$ANDROID_APK_ARTIFACT" ]]; then
             ANDROID_ARTIFACT_SLUG=$(echo "$ANDROID_APK_ARTIFACT" | jq -r '.slug')
             ANDROID_DETAILS=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
-              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$BUILD_SLUG/artifacts/$ANDROID_ARTIFACT_SLUG")
+              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$ANDROID_ARTIFACT_SLUG")
             
             ANDROID_VERSION=$(echo "$ANDROID_DETAILS" | jq -r '.data.artifact_meta.app_info.version')
             ANDROID_DOWNLOAD_URL=$(echo "$ANDROID_DETAILS" | jq -r '.data.expiring_download_url')
@@ -172,7 +202,7 @@ jobs:
           
           # Download iOS IPA
           IOS_ARTIFACTS=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
-            "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$BUILD_SLUG/artifacts")
+            "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$IOS_BUILD_ID/artifacts")
           echo "iOS artifacts response: $IOS_ARTIFACTS"
           
           IOS_IPA_ARTIFACT=$(echo "$IOS_ARTIFACTS" | jq -r '.data[] | 
@@ -181,7 +211,7 @@ jobs:
           if [[ -n "$IOS_IPA_ARTIFACT" ]]; then
             IOS_ARTIFACT_SLUG=$(echo "$IOS_IPA_ARTIFACT" | jq -r '.slug')
             IOS_DETAILS=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
-              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$BUILD_SLUG/artifacts/$IOS_ARTIFACT_SLUG")
+              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$IOS_ARTIFACT_SLUG")
             
             IOS_VERSION=$(echo "$IOS_DETAILS" | jq -r '.data.artifact_meta.app_info.version')
             IOS_DOWNLOAD_URL=$(echo "$IOS_DETAILS" | jq -r '.data.expiring_download_url')

@@ -31,7 +31,7 @@ env:
   TEST_SRP_3: ${{ secrets.TEST_SRP_3 }}
 
 jobs:
-  # Combined job to trigger QA builds and extract BrowserStack URLs
+  # Job to trigger QA builds and extract BrowserStack URLs
   trigger-qa-builds-and-upload:
     name: Trigger QA Builds and Extract BrowserStack URLs
     runs-on: ubuntu-latest
@@ -101,7 +101,6 @@ jobs:
           # Store build slug for artifact download
           echo "BUILD_SLUG=$BUILD_SLUG" >> $GITHUB_ENV
           
-          # Wait for build to complete (with timeout)
           echo "Waiting for build to complete..."
           TIMEOUT=1800  # 30 minutes
           ELAPSED=0
@@ -126,10 +125,7 @@ jobs:
               echo "Pipeline is in progress..."
             elif [ "$PIPELINE_STATUS" = "null" ]; then
               echo "Pipeline status is null, checking if pipeline exists..."
-              # Try to get pipeline info to see if it exists
-              PIPELINE_INFO=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
-                "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/pipelines/$BUILD_SLUG")
-              echo "Pipeline info response: $PIPELINE_INFO"
+
             fi
             
             sleep 30

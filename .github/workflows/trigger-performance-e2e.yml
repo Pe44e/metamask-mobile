@@ -117,7 +117,7 @@ jobs:
         with:
           name: android-test-results-${{ matrix.device.name }}-${{ matrix.device.os_version }}
           path: |
-            test-reports/
+            test-reports/appwright-report/
             appwright-report/
           retention-days: 7
 
@@ -202,7 +202,7 @@ jobs:
         with:
           name: ios-test-results-${{ matrix.device.name }}-${{ matrix.device.os_version }}
           path: |
-            test-reports/
+            test-reports/appwright-report/
             appwright-report/
           retention-days: 7
 
@@ -218,36 +218,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: test-results/
-      
-      - name: Generate Test Summary
-        run: |
-          echo "## Sequential Test Execution Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Execution Order" >> $GITHUB_STEP_SUMMARY
-          echo "Tests were executed sequentially (one device at a time) for better resource management." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Device Matrix Overview" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### Android Devices (5 total) - Sequential Order:" >> $GITHUB_STEP_SUMMARY
-          echo "1. **Samsung Galaxy S23 Ultra** (High Class) - Android 13" >> $GITHUB_STEP_SUMMARY
-          echo "2. **Google Pixel 8 Pro** (High Class) - Android 14" >> $GITHUB_STEP_SUMMARY
-          echo "3. **Samsung Galaxy A52s 5G** (Medium Class) - Android 12" >> $GITHUB_STEP_SUMMARY
-          echo "4. **Samsung Galaxy A32** (Low Class) - Android 11" >> $GITHUB_STEP_SUMMARY
-          echo "5. **TECNO KI5k** (Low Class) - Android 11" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### iOS Devices (3 total) - Sequential Order:" >> $GITHUB_STEP_SUMMARY
-          echo "1. **iPhone 14 Pro Max** (High Class) - iOS 16" >> $GITHUB_STEP_SUMMARY
-          echo "2. **iPhone 11** (Medium Class) - iOS 13 - ⚠️ iOS 13 not supported by MetaMask" >> $GITHUB_STEP_SUMMARY
-          echo "3. **iPhone 8** (Low Class) - iOS 11 - ⚠️ iOS 11 not supported by MetaMask" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "Check the artifacts above for detailed test reports from each device." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Important Notes" >> $GITHUB_STEP_SUMMARY
-          echo "- Tests run sequentially: Device A → Device B → Device C, etc." >> $GITHUB_STEP_SUMMARY
-          echo "- iOS 13 and iOS 11 devices may fail due to MetaMask app compatibility" >> $GITHUB_STEP_SUMMARY
-          echo "- Uses matrix strategy to dynamically update appwright config for each device" >> $GITHUB_STEP_SUMMARY
-      
+    
       - name: Check Test Results
         run: |
           if [ "${{ needs.android-tests.result }}" == "failure" ] || [ "${{ needs.ios-tests.result }}" == "failure" ]; then

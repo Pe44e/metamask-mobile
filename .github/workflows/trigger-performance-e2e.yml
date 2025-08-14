@@ -31,9 +31,9 @@ env:
   TEST_SRP_3: ${{ secrets.TEST_SRP_3 }}
 
 jobs:
-  # Combined job to trigger QA builds, download artifacts, and upload to BrowserStack
+  # Combined job to trigger QA builds and extract BrowserStack URLs
   trigger-qa-builds-and-upload:
-    name: Trigger QA Builds and Upload to BrowserStack
+    name: Trigger QA Builds and Extract BrowserStack URLs
     runs-on: ubuntu-latest
     env:
       BITRISE_APP_ID: ${{ secrets.BITRISE_APP_ID }}
@@ -171,148 +171,125 @@ jobs:
           BITRISE_APP_ID: ${{ env.BITRISE_APP_ID }}
           BITRISE_API_TOKEN: ${{ env.BITRISE_API_TOKEN }}
         run: |
-          echo "Downloading build artifacts..."
+          echo "Downloading browserstack_uploaded_apps.json files..."
+          echo "Android Build ID: $ANDROID_BUILD_ID"
+          echo "iOS Build ID: $IOS_BUILD_ID"
           
-          # Download Android APK
+          # Download Android browserstack_uploaded_apps.json
+          echo "Fetching Android artifacts..."
           ANDROID_ARTIFACTS=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
             "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$ANDROID_BUILD_ID/artifacts")
+          
+          if [[ $? -ne 0 ]]; then
+            echo "Error: Failed to fetch Android artifacts"
+            exit 1
+          fi
+          
           echo "Android artifacts response: $ANDROID_ARTIFACTS"
           
-          ANDROID_APK_ARTIFACT=$(echo "$ANDROID_ARTIFACTS" | jq -r '.data[] | 
-            select(.artifact_type == "android-apk" and (.title | startswith("metamask-qa-prod")))')
+          # Find the browserstack_uploaded_apps.json file
+          ANDROID_BS_JSON_ARTIFACT=$(echo "$ANDROID_ARTIFACTS" | jq -r '.data[] | 
+            select(.title == "browserstack_uploaded_apps.json")')
           
-          if [[ -n "$ANDROID_APK_ARTIFACT" ]]; then
-            ANDROID_ARTIFACT_SLUG=$(echo "$ANDROID_APK_ARTIFACT" | jq -r '.slug')
-            ANDROID_DETAILS=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
-              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$ANDROID_ARTIFACT_SLUG")
+          echo "Android browserstack JSON artifact: $ANDROID_BS_JSON_ARTIFACT"
+          
+          if [[ -n "$ANDROID_BS_JSON_ARTIFACT" ]]; then
+            ANDROID_BS_ARTIFACT_SLUG=$(echo "$ANDROID_BS_JSON_ARTIFACT" | jq -r '.slug')
+            echo "Android browserstack artifact slug: $ANDROID_BS_ARTIFACT_SLUG"
             
-            ANDROID_VERSION=$(echo "$ANDROID_DETAILS" | jq -r '.data.artifact_meta.app_info.version')
-            ANDROID_DOWNLOAD_URL=$(echo "$ANDROID_DETAILS" | jq -r '.data.expiring_download_url')
+            # Download the JSON file
+            ANDROID_BS_DOWNLOAD_URL=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
+              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$ANDROID_BUILD_ID/artifacts/$ANDROID_BS_ARTIFACT_SLUG" | \
+              jq -r '.data.expiring_download_url')
             
-            echo "Android version: $ANDROID_VERSION"
-            echo "android-version=$ANDROID_VERSION" >> $GITHUB_OUTPUT
-            
-            if [[ -n "$ANDROID_DOWNLOAD_URL" && "$ANDROID_DOWNLOAD_URL" != "null" ]]; then
-              ANDROID_FILENAME="MetaMask-Android-${ANDROID_VERSION}.apk"
-              wget -O "$ANDROID_FILENAME" "$ANDROID_DOWNLOAD_URL"
-              echo "android-app-path=$PWD/$ANDROID_FILENAME" >> $GITHUB_OUTPUT
-              echo "Downloaded Android APK: $ANDROID_FILENAME"
+            if [[ -n "$ANDROID_BS_DOWNLOAD_URL" && "$ANDROID_BS_DOWNLOAD_URL" != "null" ]]; then
+              echo "Downloading Android browserstack JSON..."
+              wget -O "android_browserstack_apps.json" "$ANDROID_BS_DOWNLOAD_URL"
+              
+              if [[ $? -ne 0 ]]; then
+                echo "Error: Failed to download Android browserstack JSON"
+                exit 1
+              fi
+              
+              # Extract the first Android APK app_url
+              ANDROID_BS_URL=$(cat "android_browserstack_apps.json" | jq -r '.[] | select(.app_name | endswith(".apk")) | .app_url' | head -1)
+              ANDROID_VERSION=$(cat "android_browserstack_apps.json" | jq -r '.[] | select(.app_name | endswith(".apk")) | .app_version' | head -1)
+              
+              echo "Android BrowserStack URL: $ANDROID_BS_URL"
+              echo "Android version: $ANDROID_VERSION"
+              echo "android-version=$ANDROID_VERSION" >> $GITHUB_OUTPUT
+              echo "browserstack-android-url=$ANDROID_BS_URL" >> $GITHUB_OUTPUT
+            else
+              echo "Error: No Android browserstack JSON download URL found"
+              exit 1
             fi
+          else
+            echo "Error: No Android browserstack_uploaded_apps.json artifact found"
+            exit 1
           fi
           
-          # Download iOS IPA
+          # Download iOS browserstack_uploaded_apps.json
+          echo "Fetching iOS artifacts..."
           IOS_ARTIFACTS=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
             "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$IOS_BUILD_ID/artifacts")
+          
+          if [[ $? -ne 0 ]]; then
+            echo "Error: Failed to fetch iOS artifacts"
+            exit 1
+          fi
+          
           echo "iOS artifacts response: $IOS_ARTIFACTS"
           
-          IOS_IPA_ARTIFACT=$(echo "$IOS_ARTIFACTS" | jq -r '.data[] | 
-            select(.artifact_type == "ios-ipa" and (.title | startswith("metamask-device-qa-prod")))')
+          # Find the browserstack_uploaded_apps.json file
+          IOS_BS_JSON_ARTIFACT=$(echo "$IOS_ARTIFACTS" | jq -r '.data[] | 
+            select(.title == "browserstack_uploaded_apps.json")')
           
-          if [[ -n "$IOS_IPA_ARTIFACT" ]]; then
-            IOS_ARTIFACT_SLUG=$(echo "$IOS_IPA_ARTIFACT" | jq -r '.slug')
-            IOS_DETAILS=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
-              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$IOS_ARTIFACT_SLUG")
+          echo "iOS browserstack JSON artifact: $IOS_BS_JSON_ARTIFACT"
+          
+          if [[ -n "$IOS_BS_JSON_ARTIFACT" ]]; then
+            IOS_BS_ARTIFACT_SLUG=$(echo "$IOS_BS_JSON_ARTIFACT" | jq -r '.slug')
+            echo "iOS browserstack artifact slug: $IOS_BS_ARTIFACT_SLUG"
             
-            IOS_VERSION=$(echo "$IOS_DETAILS" | jq -r '.data.artifact_meta.app_info.version')
-            IOS_DOWNLOAD_URL=$(echo "$IOS_DETAILS" | jq -r '.data.expiring_download_url')
+            # Download the JSON file
+            IOS_BS_DOWNLOAD_URL=$(curl -s -H "Authorization: $BITRISE_API_TOKEN" \
+              "https://api.bitrise.io/v0.1/apps/$BITRISE_APP_ID/builds/$IOS_BUILD_ID/artifacts/$IOS_BS_ARTIFACT_SLUG" | \
+              jq -r '.data.expiring_download_url')
             
-            echo "iOS version: $IOS_VERSION"
-            echo "ios-version=$IOS_VERSION" >> $GITHUB_OUTPUT
-            
-            if [[ -n "$IOS_DOWNLOAD_URL" && "$IOS_DOWNLOAD_URL" != "null" ]]; then
-              IOS_FILENAME="MetaMask-iOS-${IOS_VERSION}.ipa"
-              wget -O "$IOS_FILENAME" "$IOS_DOWNLOAD_URL"
-              echo "ios-app-path=$PWD/$IOS_FILENAME" >> $GITHUB_OUTPUT
-              echo "Downloaded iOS IPA: $IOS_FILENAME"
+            if [[ -n "$IOS_BS_DOWNLOAD_URL" && "$IOS_BS_DOWNLOAD_URL" != "null" ]]; then
+              echo "Downloading iOS browserstack JSON..."
+              wget -O "ios_browserstack_apps.json" "$IOS_BS_DOWNLOAD_URL"
+              
+              if [[ $? -ne 0 ]]; then
+                echo "Error: Failed to download iOS browserstack JSON"
+                exit 1
+              fi
+              
+              # Extract the first iOS IPA app_url
+              IOS_BS_URL=$(cat "ios_browserstack_apps.json" | jq -r '.[] | select(.app_name | endswith(".ipa")) | .app_url' | head -1)
+              IOS_VERSION=$(cat "ios_browserstack_apps.json" | jq -r '.[] | select(.app_name | endswith(".ipa")) | .app_version' | head -1)
+              
+              echo "iOS BrowserStack URL: $IOS_BS_URL"
+              echo "iOS version: $IOS_VERSION"
+              echo "ios-version=$IOS_VERSION" >> $GITHUB_OUTPUT
+              echo "browserstack-ios-url=$IOS_BS_URL" >> $GITHUB_OUTPUT
+            else
+              echo "Error: No iOS browserstack JSON download URL found"
+              exit 1
             fi
-          fi
-      
-      - name: Upload Apps to BrowserStack
-        id: upload-to-browserstack
-        env:
-          BROWSERSTACK_USERNAME: ${{ env.BROWSERSTACK_USERNAME }}
-          BROWSERSTACK_ACCESS_KEY: ${{ env.BROWSERSTACK_ACCESS_KEY }}
-        run: |
-          echo "Uploading apps to BrowserStack..."
-          
-          # Use the downloaded APK and IPA files directly
-          APK_FILE="${{ steps.download-artifacts.outputs.android-app-path }}"
-          IPA_FILE="${{ steps.download-artifacts.outputs.ios-app-path }}"
-          
-          if [[ -z "$APK_FILE" ]]; then
-            echo "Error: No APK file path found"
-            exit 1
-          fi
-          
-          if [[ -z "$IPA_FILE" ]]; then
-            echo "Error: No IPA file path found"
-            exit 1
-          fi
-          
-          echo "Using APK: $APK_FILE"
-          echo "Using IPA: $IPA_FILE"
-          
-          # Generate custom IDs for the uploads
-          ANDROID_CUSTOM_ID="metamask-android-qa-$(date +%s)"
-          IOS_CUSTOM_ID="metamask-ios-qa-$(date +%s)"
-          
-          echo "Android Custom ID: $ANDROID_CUSTOM_ID"
-          echo "iOS Custom ID: $IOS_CUSTOM_ID"
-          
-          # Upload Android APK to BrowserStack
-          echo "Uploading Android APK to BrowserStack..."
-          ANDROID_RESPONSE=$(curl -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
-            -X POST "https://api-cloud.browserstack.com/app-automate/upload" \
-            -F "file=@$APK_FILE" \
-            -F 'data={"custom_id": "'$ANDROID_CUSTOM_ID'"}' \
-            -s)
-          
-          ANDROID_APP_URL=$(echo "$ANDROID_RESPONSE" | jq -r '.app_url')
-          if [[ -n "$ANDROID_APP_URL" && "$ANDROID_APP_URL" != "null" ]]; then
-            echo "Android app uploaded successfully: $ANDROID_APP_URL"
-            echo "browserstack-android-url=$ANDROID_APP_URL" >> $GITHUB_OUTPUT
           else
-            echo "Error: Failed to upload Android app"
-            echo "Response: $ANDROID_RESPONSE"
+            echo "Error: No iOS browserstack_uploaded_apps.json artifact found"
             exit 1
           fi
           
-          # Upload iOS IPA to BrowserStack
-          echo "Uploading iOS IPA to BrowserStack..."
-          IOS_RESPONSE=$(curl -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
-            -X POST "https://api-cloud.browserstack.com/app-automate/upload" \
-            -F "file=@$IPA_FILE" \
-            -F 'data={"custom_id": "'$IOS_CUSTOM_ID'"}' \
-            -s)
-          
-          IOS_APP_URL=$(echo "$IOS_RESPONSE" | jq -r '.app_url')
-          if [[ -n "$IOS_APP_URL" && "$IOS_APP_URL" != "null" ]]; then
-            echo "iOS app uploaded successfully: $IOS_APP_URL"
-            echo "ios-app-url=$IOS_APP_URL" >> $GITHUB_OUTPUT
-          else
-            echo "Error: Failed to upload iOS app"
-            echo "Response: $IOS_RESPONSE"
-            exit 1
-          fi
-          
-          echo "=== BrowserStack Upload Summary ==="
-          echo "Android App URL: $ANDROID_APP_URL"
-          echo "iOS App URL: $IOS_APP_URL"
-      
-      - name: Upload Apps as Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: qa-apps
-          path: |
-            *.apk
-            *.ipa
-          retention-days: 1
+          echo "BrowserStack URLs extracted successfully!"
+          echo "Android: $ANDROID_BS_URL"
+          echo "iOS: $IOS_BS_URL"
     
     outputs:
       android-version: ${{ steps.download-artifacts.outputs.android-version }}
       ios-version: ${{ steps.download-artifacts.outputs.ios-version }}
-      browserstack-android-url: ${{ steps.upload-to-browserstack.outputs.browserstack-android-url }}
-      browserstack-ios-url: ${{ steps.upload-to-browserstack.outputs.browserstack-ios-url }}
+      browserstack-android-url: ${{ steps.download-artifacts.outputs.browserstack-android-url }}
+      browserstack-ios-url: ${{ steps.download-artifacts.outputs.browserstack-ios-url }}
 
   # Sequential Android Tests on Multiple Devices
   android-tests:

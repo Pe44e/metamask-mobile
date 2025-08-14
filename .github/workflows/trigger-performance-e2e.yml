@@ -131,12 +131,12 @@ jobs:
         device:
           # High-end Devices
           - name: 'iPhone 14 Pro Max'
-            os_version: '16'
+            os_version: '16.0'
             category: 'high'
           
           # Medium Devices
           - name: 'iPhone 12'
-            os_version: '14'
+            os_version: '14.0'
             category: 'medium'
 
     steps:

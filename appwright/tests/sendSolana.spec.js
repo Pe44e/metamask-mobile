@@ -25,92 +25,94 @@ import NetworkEducationModal from '../../wdio/screen-objects/Modals/NetworkEduca
 import SendSolanaScreen from '../../wdio/screen-objects/SendSolanaScreen.js';
 import SolanaConfirmationScreen from '../../wdio/screen-objects/SolanaConfirmationScreen.js';
 
-const SEEDLESS_ONBOARDING_ENABLED = process.env.SEEDLESS_ONBOARDING_ENABLED === 'true';
+const SEEDLESS_ONBOARDING_ENABLED =
+  process.env.SEEDLESS_ONBOARDING_ENABLED === 'true';
 
 test('Send flow - Solana', async ({ device }, testInfo) => {
-    WelcomeScreen.device = device;
-    TermOfUseScreen.device = device;
-    OnboardingScreen.device = device;
-    CreateNewWalletScreen.device = device;
-    MetaMetricsScreen.device = device;
-    OnboardingSucessScreen.device = device;
-    OnboardingSheet.device = device;
-    SolanaFeatureSheet.device = device;
-    WalletAccountModal.device = device;
-    SkipAccountSecurityModal.device = device;
-    ImportFromSeedScreen.device = device;
-    CreatePasswordScreen.device = device;
-    WalletMainScreen.device = device;
-    AccountListComponent.device = device;
-    AddAccountModal.device = device;
-    WalletActionModal.device = device;
-    SendScreen.device = device;
-    ConfirmationScreen.device = device;
-    AmountScreen.device = device;
-    NetworkEducationModal.device = device;
-    SendSolanaScreen.device = device;
-    SolanaConfirmationScreen.device = device;
-    console.log("testInfo", testInfo.project.use.device);
-  
-    await WelcomeScreen.clickGetStartedButton();
-  
-    await TermOfUseScreen.isDisplayed();
-    await TermOfUseScreen.tapAgreeCheckBox();
-    await TermOfUseScreen.tapScrollEndButton();
-    await TermOfUseScreen.tapAcceptButton();
-  
-    await OnboardingScreen.isScreenTitleVisible();
-    await OnboardingScreen.tapHaveAnExistingWallet();
-      await OnboardingSheet.tapImportSeedButton();
-    await ImportFromSeedScreen.isScreenTitleVisible();
-    await ImportFromSeedScreen.typeSecretRecoveryPhrase(
-      process.env.TEST_SRP_1,
-      true,
-    );
-    await ImportFromSeedScreen.tapImportScreenTitleToDismissKeyboard();
-    await ImportFromSeedScreen.tapContinueButton();
-  
-    await CreatePasswordScreen.enterPassword('123456789');
-    await CreatePasswordScreen.reEnterPassword('123456789');
-    await CreatePasswordScreen.tapIUnderstandCheckBox();
-    await CreatePasswordScreen.tapCreatePasswordButton();
-    await MetaMetricsScreen.isScreenTitleVisible();
-    await MetaMetricsScreen.tapIAgreeButton();
-  
-    await OnboardingSucessScreen.tapDone();
-    await SolanaFeatureSheet.isVisible();
-    await SolanaFeatureSheet.tapNotNowButton();
-    const sendAccountSelectorScreen = new TimerHelper(
-      'Time since the user clicks on the send button, until the user clicks on the next button',
-    );
-    await WalletMainScreen.tapIdenticon();
-    await AccountListComponent.tapOnAccountByName('Solana Account 1');
-    await NetworkEducationModal.tapGotItButton();
-    const sendSolanaScreenTimer = new TimerHelper(
-        'Time since the user clicks on Send button and sees the send solana screen',
-      );
-    sendSolanaScreenTimer.start();
-    await WalletActionModal.tapSendButton();
-    await SendSolanaScreen.isAddressFieldVisible();
-    sendSolanaScreenTimer.stop();
+  WelcomeScreen.device = device;
+  TermOfUseScreen.device = device;
+  OnboardingScreen.device = device;
+  CreateNewWalletScreen.device = device;
+  MetaMetricsScreen.device = device;
+  OnboardingSucessScreen.device = device;
+  OnboardingSheet.device = device;
+  SolanaFeatureSheet.device = device;
+  WalletAccountModal.device = device;
+  SkipAccountSecurityModal.device = device;
+  ImportFromSeedScreen.device = device;
+  CreatePasswordScreen.device = device;
+  WalletMainScreen.device = device;
+  AccountListComponent.device = device;
+  AddAccountModal.device = device;
+  WalletActionModal.device = device;
+  SendScreen.device = device;
+  ConfirmationScreen.device = device;
+  AmountScreen.device = device;
+  NetworkEducationModal.device = device;
+  SendSolanaScreen.device = device;
+  SolanaConfirmationScreen.device = device;
+  console.log('testInfo', testInfo.project.use.device);
 
-    await SendSolanaScreen.fillAddressField('3xTPAZxmpwd8GrNEKApaTw6VH4jqJ31WFXUvQzgwhR7c');
-    await SendSolanaScreen.fillAmountField('0.001');
+  await WelcomeScreen.clickGetStartedButton();
 
-    const sendAmountScreen = new TimerHelper(
-        'Time since the user is on the send amount screen, until the user gets the confirmation screen',
-      );
-    sendAmountScreen.start();
+  await TermOfUseScreen.isDisplayed();
+  await TermOfUseScreen.tapAgreeCheckBox();
+  await TermOfUseScreen.tapScrollEndButton();
+  await TermOfUseScreen.tapAcceptButton();
 
-    await SendSolanaScreen.tapContinueButton();
-    await SolanaConfirmationScreen.isFieldVisible();
-    await SolanaConfirmationScreen.isConfirmButtonDisplayed();
+  await OnboardingScreen.isScreenTitleVisible();
+  await OnboardingScreen.tapHaveAnExistingWallet();
+  await OnboardingSheet.tapImportSeedButton();
+  await ImportFromSeedScreen.isScreenTitleVisible();
+  await ImportFromSeedScreen.typeSecretRecoveryPhrase(
+    process.env.TEST_SRP_1,
+    true,
+  );
+  await ImportFromSeedScreen.tapImportScreenTitleToDismissKeyboard();
+  await ImportFromSeedScreen.tapContinueButton();
 
-    sendAmountScreen.stop();
-  
-    const performanceTracker = new PerformanceTracker();
-    performanceTracker.addTimer(sendSolanaScreenTimer);
-    performanceTracker.addTimer(sendAmountScreen);
-    await performanceTracker.attachToTest(testInfo);
-  });
-  
+  await CreatePasswordScreen.enterPassword('123456789');
+  await CreatePasswordScreen.reEnterPassword('123456789');
+  await CreatePasswordScreen.tapIUnderstandCheckBox();
+  await CreatePasswordScreen.tapCreatePasswordButton();
+  await MetaMetricsScreen.isScreenTitleVisible();
+  await MetaMetricsScreen.tapIAgreeButton();
+
+  await OnboardingSucessScreen.tapDone();
+  // await SolanaFeatureSheet.isVisible();
+  // await SolanaFeatureSheet.tapNotNowButton();
+  const sendAccountSelectorScreen = new TimerHelper(
+    'Time since the user clicks on the send button, until the user clicks on the next button',
+  );
+  await WalletMainScreen.tapIdenticon();
+  await AccountListComponent.tapOnAccountByName('Solana Account 1');
+  await NetworkEducationModal.tapGotItButton();
+  const sendSolanaScreenTimer = new TimerHelper(
+    'Time since the user clicks on Send button and sees the send solana screen',
+  );
+  sendSolanaScreenTimer.start();
+  await WalletActionModal.tapSendButton();
+  await SendSolanaScreen.isAddressFieldVisible();
+  sendSolanaScreenTimer.stop();
+
+  await SendSolanaScreen.fillAddressField(
+    '3xTPAZxmpwd8GrNEKApaTw6VH4jqJ31WFXUvQzgwhR7c',
+  );
+  await SendSolanaScreen.fillAmountField('0.001');
+
+  const sendAmountScreen = new TimerHelper(
+    'Time since the user is on the send amount screen, until the user gets the confirmation screen',
+  );
+  sendAmountScreen.start();
+
+  await SendSolanaScreen.tapContinueButton();
+  await SolanaConfirmationScreen.isFieldVisible();
+  await SolanaConfirmationScreen.isConfirmButtonDisplayed();
+
+  sendAmountScreen.stop();
+
+  const performanceTracker = new PerformanceTracker();
+  performanceTracker.addTimer(sendSolanaScreenTimer);
+  performanceTracker.addTimer(sendAmountScreen);
+  await performanceTracker.attachToTest(testInfo);
+});

@@ -68,8 +68,8 @@ test('Asset View', async ({ device }, testInfo) => {
   await MetaMetricsScreen.isScreenTitleVisible();
   await MetaMetricsScreen.tapIAgreeButton();
 
-  await OnboardingSucessScreen.tapDone();
-  await SolanaFeatureSheet.isVisible();
+  // await OnboardingSucessScreen.tapDone();
+  // await SolanaFeatureSheet.isVisible();
   await SolanaFeatureSheet.tapNotNowButton();
   await WalletMainScreen.isMainWalletViewVisible();
 

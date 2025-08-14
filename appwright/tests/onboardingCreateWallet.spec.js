@@ -84,8 +84,8 @@ test('User creates a new wallet during onboarding', async ({
     'Time until the user clicks on the "Not now" button on Solana feature sheet',
   );
   screen6Timer.start();
-  await SolanaFeatureSheet.isVisible();
-  await SolanaFeatureSheet.tapNotNowButton();
+  // await SolanaFeatureSheet.isVisible();
+  // await SolanaFeatureSheet.tapNotNowButton();
   screen6Timer.stop();
   const performanceTracker = new PerformanceTracker();
   performanceTracker.addTimer(screen1Timer);

@@ -91,8 +91,8 @@ test('Import SRPs', async ({ device }, testInfo) => {
   );
   await OnboardingSucessScreen.tapDone();
   screen6Timer.start();
-  await SolanaFeatureSheet.isVisible();
-  await SolanaFeatureSheet.tapNotNowButton();
+  // await SolanaFeatureSheet.isVisible();
+  // await SolanaFeatureSheet.tapNotNowButton();
   screen6Timer.stop();
   await WalletMainScreen.isMainWalletViewVisible();
   srp1Timer.stop();

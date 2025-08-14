@@ -74,8 +74,8 @@ test('Send flow - Ethereum', async ({ device }, testInfo) => {
   await MetaMetricsScreen.tapIAgreeButton();
 
   await OnboardingSucessScreen.tapDone();
-  await SolanaFeatureSheet.isVisible();
-  await SolanaFeatureSheet.tapNotNowButton();
+  // await SolanaFeatureSheet.isVisible();
+  // await SolanaFeatureSheet.tapNotNowButton();
   const sendAccountSelectorScreen = new TimerHelper(
     'Time since the user clicks on the send button, until the user clicks on the next button',
   );

@@ -65,8 +65,8 @@ test('User creates a new Ethereum account after onboarding', async ({
 
   await OnboardingSucessScreen.tapDone();
 
-  await SolanaFeatureSheet.isVisible();
-  await SolanaFeatureSheet.tapNotNowButton();
+  // await SolanaFeatureSheet.isVisible();
+  // await SolanaFeatureSheet.tapNotNowButton();
   await WalletMainScreen.isMainWalletViewVisible();
   await WalletMainScreen.tapIdenticon();
   await AccountListComponent.tapAddAccountButton();

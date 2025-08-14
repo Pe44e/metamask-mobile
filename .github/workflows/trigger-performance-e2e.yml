@@ -135,8 +135,8 @@ jobs:
             category: 'high'
           
           # Medium Devices
-          - name: 'iPhone 11'
-            os_version: '13'
+          - name: 'iPhone 12'
+            os_version: '14'
             category: 'medium'
 
     steps:

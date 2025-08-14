@@ -50,6 +50,8 @@ import ActivityView from '../../Views/ActivityView';
 import RewardsView from '../../Views/RewardsView';
 import RewardsTerms from '../../Views/RewardsView/RewardsTerms';
 import RewardsDashboard from '../../Views/RewardsView/RewardsDashboard';
+import { RewardsAuthProvider } from '../../../core/Engine/controllers/rewards-controller/RewardsAuthProvider';
+import RewardsNavigator from '../../Views/RewardsView/RewardsNavigator';
 import SwapsAmountView from '../../UI/Swaps';
 import SwapsQuotesView from '../../UI/Swaps/QuotesView';
 import CollectiblesDetails from '../../UI/CollectibleModal';
@@ -248,8 +250,12 @@ const RewardsHome = () => {
   if (!isRewardsEnabled) {
     return null;
   }
-  // TODO: Return RewardsNavigator
-  return null;
+
+  return (
+    <RewardsAuthProvider>
+      <RewardsNavigator />
+    </RewardsAuthProvider>
+  );
 };
 
 /* eslint-disable react/prop-types */

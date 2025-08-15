@@ -1,11 +1,19 @@
 // In appwright.config.ts
-const dotenv = require('dotenv');
+import dotenv from 'dotenv';
 dotenv.config({ path: '.e2e.env' });
 import { defineConfig, Platform } from 'appwright';
 export default defineConfig({
-  testDir: './tests',
-  workers: 1, // Use only one worker
-  //reporter: [['./reporters/custom-reporter.js']],
+  testMatch: '**/tests/performance/*.spec.js',
+  reporter: [
+    // The default HTML reporter from Appwright
+    [
+      'html',
+      { open: 'never', outputFolder: './test-reports/appwright-report' },
+    ],
+    ['./reporters/custom-reporter.js'],
+    ['list'],
+  ],
+
   projects: [
     {
       name: 'android',
@@ -13,9 +21,10 @@ export default defineConfig({
         platform: Platform.ANDROID,
         device: {
           provider: 'emulator', // or 'local-device' or 'browserstack'
+          name: 'Samsung Galaxy S24 Ultra', // this can changed
+          osVersion: '14', // this can changed
         },
-        buildPath: './appwright/metamask-main-e2e-2203-4.apk', // Path to your .apk file
-        expectTimeout: 10000,
+        buildPath: '/Users/javi/Downloads/app-qa-release.apk', // Path to your .apk file
       },
     },
     {
@@ -24,8 +33,9 @@ export default defineConfig({
         platform: Platform.IOS,
         device: {
           provider: 'emulator', // or 'local-device' or 'browserstack'
+          osVersion: '16.0', // this can changed
         },
-        buildPath: './appwright/metamask-simulator-main-e2e.app', // Path to your .app file
+        buildPath: 'Metamask-QA.app', // Path to your .app file
       },
     },
     {
@@ -33,13 +43,11 @@ export default defineConfig({
       use: {
         platform: Platform.ANDROID,
         device: {
-          provider: 'browserstack',
-          name: process.env.BROWSERSTACK_DEVICE || 'Samsung Galaxy S23 Ultra',
-          osVersion: process.env.BROWSERSTACK_OS_VERSION || '13.0',
+          provider: 'browserstack', // or 'local-device' or 'browserstack'
+          name: process.env.BROWSERSTACK_DEVICE || 'Samsung Galaxy S23 Ultra', // this can changed
+          osVersion: process.env.BROWSERSTACK_OS_VERSION || '13.0', // this can changed
         },
-        // buildPath: 'bs://1f15f8c932c7019f6bcd26d5f496c52dd45b12bd',
-        buildPath: process.env.BROWSERSTACK_ANDROID_APP_URL, // Path to Browserstack url bs:// link
-        // Path to Browserstack url bs:// link
+        buildPath: process.env.BROWSERSTACK_ANDROID_APP_URL, // Path to Browserstack url bs:// link release-7.53.0-7.53.0-2223.apk
       },
     },
     {
@@ -48,13 +56,10 @@ export default defineConfig({
         platform: Platform.IOS,
         device: {
           provider: 'browserstack',
-          name: process.env.BROWSERSTACK_DEVICE || 'iPhone 16 Pro',
-          osVersion: process.env.BROWSERSTACK_OS_VERSION || '18.0',
+          name: process.env.BROWSERSTACK_DEVICE || 'iPhone 14 Pro Max',
+          osVersion: process.env.BROWSERSTACK_OS_VERSION || '16.0',
         },
-      buildPath: process.env.BROWSERSTACK_IOS_APP_URL, // Path to Browserstack url bs:// link
-
-        // buildPath: 'bs://44544a893ab789cd7bd8dd3a0d8e36973fc95119', // Path to your .app file
-        // buildPath: 'bs://7a42bf53dcdf1e51761f4c14a541500656b910bb', // Path to Browserstack url bs:// link
+        buildPath: process.env.BROWSERSTACK_IOS_APP_URL, // Path to Browserstack url bs:// link //release-7.53.0-7.53.0-2223.ipa
       },
     },
   ],

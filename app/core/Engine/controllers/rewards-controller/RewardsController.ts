@@ -389,8 +389,6 @@ export class RewardsController extends BaseController<
    * Perform silent authentication for the given address
    */
   async #performSilentAuth(address: string): Promise<void> {
-    Logger.log('RewardsController: Performing silent auth for', address);
-
     const shouldSkip = this.#shouldSkipSilentAuth(address);
     Logger.log('RewardsController: Should skip auth?', shouldSkip);
 
@@ -435,6 +433,7 @@ export class RewardsController extends BaseController<
       const apiUrl = `${AppConstants.REWARDS_API_URL}/auth/mobile-login`;
       const requestBody = { account: address, timestamp, signature };
 
+      Logger.log('RewardsController: Performing silent auth for', address);
       // Call the silent login endpoint using fetch directly
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -503,7 +502,7 @@ export class RewardsController extends BaseController<
   }
 
   /**
-   * Update the state with a successful login response
+   * Update the state with a successful optin response
    */
   async updateStateWithOptinResponse(
     address: string,
@@ -513,7 +512,7 @@ export class RewardsController extends BaseController<
 
     // Store the session token for this subscription
     await storeSubscriptionToken(subscription.id, sessionId);
-    Logger.log('RewardsController:updateStateWithOptinResponse', {
+    Logger.log('RewardsController: updateStateWithOptinResponse', {
       address,
       subscription,
       sessionId,

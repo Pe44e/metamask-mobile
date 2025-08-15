@@ -111,9 +111,6 @@ const TabBar = ({ state, descriptors, navigation }: TabBarProps) => {
     [
       descriptors,
       state.index,
-      colors.primary.default,
-      colors.primary.inverse,
-      colors.icon.muted,
       navigation,
       tw,
       trackEvent,

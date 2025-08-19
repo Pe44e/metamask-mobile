@@ -314,24 +314,7 @@ export class RewardsController extends BaseController<
   ): Promise<string> {
     const message = `rewards,${account.address},${timestamp}`;
 
-    const isSolanaAccount = this.#isSolanaAccount(account);
-    if (isSolanaAccount) {
-      return await this.#signSolanaMessage(account, message);
-    }
-
     return await this.#signEvmMessage(account, message);
-  }
-
-  async #signSolanaMessage(
-    account: InternalAccount,
-    message: string,
-  ): Promise<string> {
-    Logger.log(
-      'RewardsController: Signing Solana message for account',
-      message,
-      account.address,
-    );
-    return 'Solana signature not supported yet';
   }
 
   async #signEvmMessage(
@@ -360,6 +343,15 @@ export class RewardsController extends BaseController<
    * Handle authentication triggers (account changes, keyring unlock)
    */
   async #handleAuthenticationTrigger(reason?: string): Promise<void> {
+    // Check if rewards feature flag is enabled
+    const rewardsEnabled = selectRewardsEnabledFlag(store.getState());
+    if (!rewardsEnabled) {
+      Logger.log(
+        'RewardsController: Rewards feature flag disabled, skipping authentication trigger',
+      );
+      return;
+    }
+
     Logger.log('RewardsController: handleAuthenticationTrigger', reason);
     Logger.log('RewardsController: Clearing cache');
     // Clear global cache
@@ -388,16 +380,12 @@ export class RewardsController extends BaseController<
   }
 
   /**
-   * Check if account is Solana account
-   */
-  #isSolanaAccount(account: InternalAccount): boolean {
-    return account.type === 'solana:data-account';
-  }
-
-  /**
    * Check if silent authentication should be skipped
    */
   #shouldSkipSilentAuth(address: string): boolean {
+    // Skip for hardware and Solana accounts
+    if (isHardwareAccount(address) || isSolanaAddress(address)) return true;
+
     const now = Date.now();
     const { auth } = this.state;
     const timeSinceLastAuth = now - auth.lastAuthTime;

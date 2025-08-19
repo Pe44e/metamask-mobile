@@ -40,11 +40,11 @@ export const selectRewardsSubscription = createSelector(
  */
 export const selectSubscriptionIdForAccount = createSelector(
   [
-    selectRewardsControllerState,
+    selectRewardsControllerStateWithFeatureFlag,
     (_state: RootState, address: string) => address,
   ],
   (
-    rewardsControllerState: RewardsControllerState,
+    rewardsControllerState: RewardsControllerState | null,
     address: string,
   ): string | null => {
     if (!rewardsControllerState?.auth?.accountToSubscription) {

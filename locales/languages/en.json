@@ -5424,6 +5424,7 @@
       "default": "Transaction details"
     },
     "label": {
+      "bridge_fee": "Bridge fee",
       "network_fee": "Network fee",
       "paid_with": "Paid with",
       "total": "Total"

@@ -27,6 +27,10 @@ const metadata = {
     persist: true,
     anonymous: false,
   },
+  onboarding: {
+    persist: true,
+    anonymous: false,
+  },
 };
 /**
  * Get the default silent auth state
@@ -35,6 +39,14 @@ const getDefaultAuthState = (): AuthState => ({
   lastAuthenticatedAccount: null,
   accountToSubscription: {},
   lastAuthTime: 0,
+});
+
+/**
+ * Get the default onboarding state
+ */
+const getDefaultOnboardingState = (): OnboardingState => ({
+  currentStep: OnboardingStep.STEP_1,
+  hasSeenOnboarding: false,
 });
 
 /**
@@ -74,7 +86,7 @@ export class RewardsController extends BaseController<
       state: {
         ...defaultRewardsControllerState,
         ...state,
-      },
+      } as RewardsControllerState,
     });
 
     this.#initializeEventSubscriptions();
@@ -392,7 +404,7 @@ export class RewardsController extends BaseController<
     // Skip if this account already has a valid subscription
     const subscriptionId = auth.accountToSubscription[address.toLowerCase()];
     if (subscriptionId && timeSinceLastAuth < GRACE_PERIOD_MS) {
-      return true; // Account belongs to a known subscription, skip auth
+      return true;
     }
 
     return false;
@@ -589,5 +601,39 @@ export class RewardsController extends BaseController<
     return () => {
       this.#accountOptInCallbacks.delete(callback);
     };
+  }
+
+  /**
+   * Get the current onboarding state
+   */
+  getOnboardingState(): OnboardingState {
+    return this.state.onboarding;
+  }
+
+  /**
+   * Update the current onboarding step
+   */
+  setOnboardingStep(step: OnboardingStep): void {
+    this.update((state) => {
+      state.onboarding.currentStep = step;
+    });
+  }
+
+  /**
+   * Mark onboarding as seen
+   */
+  markOnboardingAsSeen(): void {
+    this.update((state) => {
+      state.onboarding.hasSeenOnboarding = true;
+    });
+  }
+
+  /**
+   * Reset onboarding state
+   */
+  resetOnboardingState(): void {
+    this.update((state) => {
+      state.onboarding = getDefaultOnboardingState();
+    });
   }
 }

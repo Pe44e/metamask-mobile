@@ -5422,6 +5422,9 @@
     "title": {
       "perps_deposit": "Funded perps account",
       "default": "Transaction details"
+    },
+    "label": {
+      "paid_with": "Paid with"
     }
   }
 }

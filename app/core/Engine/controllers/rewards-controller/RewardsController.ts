@@ -46,7 +46,7 @@ const getDefaultAuthState = (): AuthState => ({
  */
 const getDefaultOnboardingState = (): OnboardingState => ({
   currentStep: OnboardingStep.STEP_1,
-  hasSeenOnboarding: false,
+  isOnboardingActive: true,
 });
 
 /**
@@ -622,9 +622,9 @@ export class RewardsController extends BaseController<
   /**
    * Mark onboarding as seen
    */
-  markOnboardingAsSeen(): void {
+  markOnboardingInactive(): void {
     this.update((state) => {
-      state.onboarding.hasSeenOnboarding = true;
+      state.onboarding.isOnboardingActive = false;
     });
   }
 

@@ -17,12 +17,11 @@ import {
 import { Regression } from '../../tags';
 import Assertions from '../../framework/Assertions';
 import { ActivitiesViewSelectorsText } from '../../selectors/Transactions/ActivitiesView.selectors';
-import { submitSwapUnifiedUI } from './helpers/swap-unified-ui';
+import { submitSwapUnifiedUI } from '../swaps/helpers/swap-unified-ui';
 import { AnvilManager } from '../../seeder/anvil-manager';
-import { swapSpecificMock } from './helpers/constants';
+import { swapSpecificMock } from '../swaps/helpers/constants';
 import { stopMockServer } from '../../api-mocking/mock-server.js';
-import { startSwapsMockServer } from './helpers/swap-mocks';
-import { prepareSwapsTestEnvironment } from './helpers/prepareSwapsTestEnvironment';
+import { startSwapsMockServer } from '../swaps/helpers/swap-mocks';
 import WalletView from '../../pages/wallet/WalletView';
 
 const fixtureServer = new FixtureServer();
@@ -61,7 +60,6 @@ describe(Regression('Multiple Swaps from Actions'), () => {
       },
     });
     await loginToApp();
-    await prepareSwapsTestEnvironment();
   });
 
   afterAll(async () => {

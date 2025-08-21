@@ -161,8 +161,6 @@ import { selectSeedlessOnboardingLoginFlow } from '../../../selectors/seedlessOn
 import { InitSendLocation } from '../confirmations/constants/send';
 import { useSendNavigation } from '../confirmations/hooks/useSendNavigation';
 import { selectSolanaOnboardingModalEnabled } from '../../../selectors/multichain/multichain';
-import { PerpsStreamProvider } from '../../UI/Perps/providers/PerpsStreamManager';
-import { PerpsConnectionProvider } from '../../UI/Perps/providers/PerpsConnectionProvider';
 
 const createStyles = ({ colors }: Theme) =>
   RNStyleSheet.create({
@@ -975,11 +973,7 @@ const Wallet = ({
           </View>
         ) : null}
         <>
-          <PerpsConnectionProvider>
-            <PerpsStreamProvider>
-              <PortfolioBalance />
-            </PerpsStreamProvider>
-          </PerpsConnectionProvider>
+          <PortfolioBalance />
           <AssetDetailsActions
             displayFundButton={displayFundButton}
             displaySwapsButton={displaySwapsButton}

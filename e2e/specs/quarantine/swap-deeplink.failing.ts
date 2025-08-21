@@ -23,7 +23,10 @@ import Matchers from '../../utils/Matchers.js';
 import Gestures from '../../utils/Gestures.js';
 import { Assertions as FrameworkAssertions } from '../../framework';
 import { startSwapsMockServer } from '../swaps/helpers/swap-mocks.ts';
-import { swapSpecificMock , localNodeOptions } from '../swaps/helpers/constants.ts';
+import {
+  swapSpecificMock,
+  localNodeOptions,
+} from '../swaps/helpers/constants.ts';
 
 const fixtureServer: FixtureServer = new FixtureServer();
 

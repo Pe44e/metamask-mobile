@@ -160,6 +160,7 @@ export const CONTROLLER_MESSENGERS = {
   },
   MultichainAccountService: {
     getMessenger: getMultichainAccountServiceMessenger,
+    getInitMessenger: noop,
   },
   RewardsController: {
     getMessenger: getRewardsControllerMessenger,

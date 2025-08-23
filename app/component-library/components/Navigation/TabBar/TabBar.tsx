@@ -112,10 +112,10 @@ const TabBar = ({ state, descriptors, navigation }: TabBarProps) => {
       state,
       descriptors,
       navigation,
+      chainId,
       trackEvent,
       createEventBuilder,
       tw,
-      chainId,
       isRewardsEnabled,
     ],
   );

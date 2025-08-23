@@ -531,6 +531,18 @@ const HomeTabs = () => {
       rootScreenName: Routes.BROWSER_VIEW,
       unmountOnBlur: true,
     },
+    activity: {
+      tabBarIconKey: TabBarIconKey.Activity,
+      callback: () => {
+        trackEvent(
+          createEventBuilder(
+            MetaMetricsEvents.NAVIGATION_TAPS_TRANSACTION_HISTORY,
+          ).build(),
+        );
+      },
+      rootScreenName: Routes.TRANSACTIONS_VIEW,
+      unmountOnBlur: true,
+    },
     rewards: {
       tabBarIconKey: TabBarIconKey.Rewards,
       callback: () => {

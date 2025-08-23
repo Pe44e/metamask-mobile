@@ -1,6 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import AppConstants from '../../../../AppConstants';
-import { getSubscriptionToken } from '../utils/MultiSubscriptionTokenVault';
 import Engine from '../../../Engine';
 import Logger from '../../../../../util/Logger';
 import type {
@@ -19,6 +18,7 @@ import type {
   ClaimRewardDto,
   LoginResponseDto,
 } from '../types';
+import { getSubscriptionToken } from '../utils/multi-subscription-token-vault';
 
 /**
  * RTK Query API slice for rewards service
@@ -46,9 +46,7 @@ export const rewardsApi = createApi({
           Engine.context.AccountsController.getSelectedMultichainAccount();
 
         if (selectedAccount && rewardsController) {
-          const subscriptionId = rewardsController.getSubscriptionIdForAccount(
-            selectedAccount.address,
-          );
+          const subscriptionId = rewardsController.getSubscriptionId();
           if (subscriptionId) {
             const tokenResult = await getSubscriptionToken(subscriptionId);
             if (tokenResult.success && tokenResult.token) {
@@ -114,7 +112,6 @@ export const rewardsApi = createApi({
         }
       },
     }),
-
     logout: builder.mutation<void, void>({
       query: () => ({
         url: '/auth/logout',

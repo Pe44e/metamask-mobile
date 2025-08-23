@@ -8,18 +8,15 @@ import {
   useLogoutMutation,
 } from '../services';
 import { selectSelectedInternalAccountAddress } from '../../../../../selectors/accountsController';
-import { selectSubscriptionIdForAccount } from '../../../../../selectors/rewardscontroller';
+import { selectRewardsSubscription } from '../../../../../selectors/rewardscontroller';
 import { handleRewardsErrorMessage } from '../../../../../util/rewards';
-import { getSubscriptionToken } from '../utils/MultiSubscriptionTokenVault';
 import Engine from '../../../../Engine';
 import Logger from '../../../../../util/Logger';
-import { RootState } from '../../../../../reducers';
+import { getSubscriptionToken } from '../utils/multi-subscription-token-vault';
 
 export const useRewardsAuth = () => {
   const address = useSelector(selectSelectedInternalAccountAddress);
-  const subscriptionId = useSelector((state: RootState) =>
-    address ? selectSubscriptionIdForAccount(state, address) : null,
-  );
+  const subscription = useSelector(selectRewardsSubscription);
   const [optinError, setOptinError] = useState<string | null>(null);
   const [optinLoading, setOptinLoading] = useState<boolean>(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -37,19 +34,14 @@ export const useRewardsAuth = () => {
       setIsAuthenticating(false);
       return;
     }
-
     setIsAuthenticating(true);
     try {
-      const rewardsController = Engine.context.RewardsController;
-      const currentSubscriptionId =
-        rewardsController.getSubscriptionIdForAccount(address);
+      const currentSubscriptionId = subscription?.id;
 
       if (currentSubscriptionId) {
         const tokenResult = await getSubscriptionToken(currentSubscriptionId);
         Logger.log('RewardsController: tokenResult', tokenResult);
         setIsAuthenticated(tokenResult.success && !!tokenResult.token);
-        // Mark onboarding inactive
-        rewardsController.markOnboardingInactive();
       } else {
         setIsAuthenticated(false);
       }
@@ -58,7 +50,7 @@ export const useRewardsAuth = () => {
     } finally {
       setIsAuthenticating(false);
     }
-  }, [address]);
+  }, [address, subscription?.id]);
 
   const handleOptin = useCallback(async () => {
     if (!address) return;
@@ -96,7 +88,6 @@ export const useRewardsAuth = () => {
 
   const handleLogout = useCallback(async () => {
     logout();
-    Engine.context.RewardsController.setDevOnlyLoginAddress(null);
   }, [logout]);
 
   const clearOptinError = useCallback(() => setOptinError(null), []);
@@ -127,7 +118,7 @@ export const useRewardsAuth = () => {
     optin: handleOptin,
     logout: handleLogout,
     currentAccount: address,
-    subscriptionId,
+    subscription,
     isOptIn: isAuthenticated,
     isLoading: optinLoading || logoutResult.isLoading || isAuthenticating,
     optinError,

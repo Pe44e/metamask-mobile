@@ -1,12 +1,12 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useSelector } from 'react-redux';
-import RewardsDashboard from './RewardsDashboard';
 import Routes from '../../../constants/navigation/Routes';
-import { useRewards } from '../../../core/Engine/controllers/rewards-controller/RewardsAuthProvider';
+import { useRewardsAuth } from '../../../core/Engine/controllers/rewards-controller/hooks/useRewardsAuth';
 import Logger from '../../../util/Logger';
 import OnboardingNavigator from './OnboardingNavigator';
 import { selectOnboardingState } from '../../../selectors/rewardscontroller';
+import RewardsDashboard from './RewardsDashboard';
 
 const Stack = createStackNavigator();
 
@@ -15,7 +15,7 @@ interface RewardsNavigatorProps {
 }
 
 const RewardsNavigator: React.FC<RewardsNavigatorProps> = () => {
-  const { isOptIn, isLoading, currentAccount, subscriptionId } = useRewards();
+  const { isOptIn, isLoading, currentAccount, subscription } = useRewardsAuth();
 
   // Get onboarding state from RewardsController using selector
   const onboardingState = useSelector(selectOnboardingState);
@@ -32,7 +32,7 @@ const RewardsNavigator: React.FC<RewardsNavigatorProps> = () => {
   Logger.log('RewardsAuthState:', {
     isOptIn,
     currentAccount,
-    subscriptionId,
+    subscription,
     isOnboardingActive,
     currentStep,
   });

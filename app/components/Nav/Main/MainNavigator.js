@@ -47,7 +47,6 @@ import Confirm from '../../Views/confirmations/legacy/SendFlow/Confirm';
 import { Confirm as RedesignedConfirm } from '../../Views/confirmations/components/confirm';
 import ContactForm from '../../Views/Settings/Contacts/ContactForm';
 import ActivityView from '../../Views/ActivityView';
-import { RewardsAuthProvider } from '../../../core/Engine/controllers/rewards-controller/RewardsAuthProvider';
 import RewardsNavigator from '../../Views/RewardsView/RewardsNavigator';
 import SwapsAmountView from '../../UI/Swaps';
 import SwapsQuotesView from '../../UI/Swaps/QuotesView';
@@ -249,11 +248,7 @@ const RewardsHome = () => {
     return null;
   }
 
-  return (
-    <RewardsAuthProvider>
-      <RewardsNavigator />
-    </RewardsAuthProvider>
-  );
+  return <RewardsNavigator />;
 };
 
 /* eslint-disable react/prop-types */

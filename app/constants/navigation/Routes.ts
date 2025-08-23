@@ -64,6 +64,7 @@ const Routes = {
   QR_SCANNER: 'QRScanner',
   TRANSACTIONS_VIEW: 'TransactionsView',
   REWARDS_VIEW: 'RewardsView',
+  REWARDS_DASHBOARD: 'RewardsDashboard',
   REWARDS_ONBOARDING_FLOW: 'RewardsOnboardingFlow',
   REWARDS_ONBOARDING_1: 'RewardsOnboarding1',
   REWARDS_ONBOARDING_2: 'RewardsOnboarding2',

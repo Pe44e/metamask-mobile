@@ -10,7 +10,6 @@ export const ICON_BY_TAB_BAR_ICON_KEY: IconByTabBarIconKey = {
   [TabBarIconKey.Browser]: IconName.Explore,
   [TabBarIconKey.Actions]: IconName.SwapVertical,
   [TabBarIconKey.Activity]: IconName.Activity,
-  [TabBarIconKey.Rewards]: IconName.Star,
   [TabBarIconKey.Setting]: IconName.Setting,
   [TabBarIconKey.Rewards]: IconName.Star,
 };
@@ -20,7 +19,6 @@ export const LABEL_BY_TAB_BAR_ICON_KEY = {
   [TabBarIconKey.Browser]: 'bottom_nav.browser',
   [TabBarIconKey.Actions]: '',
   [TabBarIconKey.Activity]: 'bottom_nav.activity',
-  [TabBarIconKey.Rewards]: 'bottom_nav.rewards',
   [TabBarIconKey.Setting]: 'bottom_nav.settings',
   [TabBarIconKey.Rewards]: 'bottom_nav.rewards',
 } as const;

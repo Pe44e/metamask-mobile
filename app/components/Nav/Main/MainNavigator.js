@@ -485,7 +485,6 @@ const HomeTabs = () => {
 
   const accountsLength = useSelector(selectAccountsLength);
   const isRewardsEnabled = useSelector(selectRewardsEnabledFlag);
-  const onboardingState = useSelector(selectOnboardingState);
 
   const chainId = useSelector((state) => {
     const providerConfig = selectProviderConfig(state);
@@ -539,7 +538,7 @@ const HomeTabs = () => {
           createEventBuilder(MetaMetricsEvents.NAVIGATION_TAPS_REWARDS).build(),
         );
       },
-      rootScreenName: Routes.REWARDS_HOME,
+      rootScreenName: Routes.REWARDS_VIEW,
     },
     settings: {
       tabBarIconKey: TabBarIconKey.Setting,
@@ -574,17 +573,7 @@ const HomeTabs = () => {
   }, []);
 
   const renderTabBar = ({ state, descriptors, navigation }) => {
-    const currentRoute = state.routes[state.index];
-    const isOnboardingActive = onboardingState?.isOnboardingActive;
-    const isOnboardingScreen =
-      currentRoute.name === Routes.REWARDS_HOME &&
-      (isOnboardingActive ||
-        currentRoute.state?.routes?.some(
-          (route) => route.name === Routes.REWARDS_ONBOARDING_FLOW,
-        ));
-
-    // Hide TabBar for onboarding screens
-    if (isKeyboardHidden && !isOnboardingScreen) {
+    if (isKeyboardHidden) {
       return (
         <TabBar
           state={state}
@@ -622,7 +611,7 @@ const HomeTabs = () => {
       />
       {isRewardsEnabled ? (
         <Tab.Screen
-          name={Routes.REWARDS_HOME}
+          name={Routes.REWARDS_VIEW}
           options={options.rewards}
           component={RewardsHome}
           layout={({ children }) => <UnmountOnBlur>{children}</UnmountOnBlur>}

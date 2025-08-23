@@ -34,26 +34,3 @@ export const selectRewardsSubscription = createSelector(
   (rewardsControllerState: RewardsControllerState | null) =>
     rewardsControllerState?.subscription,
 );
-
-/**
- * Selector to get the subscription ID for a given account address
- */
-export const selectSubscriptionIdForAccount = createSelector(
-  [
-    selectRewardsControllerStateWithFeatureFlag,
-    (_state: RootState, address: string) => address,
-  ],
-  (
-    rewardsControllerState: RewardsControllerState | null,
-    address: string,
-  ): string | null => {
-    if (!rewardsControllerState?.auth?.accountToSubscription) {
-      return null;
-    }
-    return (
-      rewardsControllerState.auth.accountToSubscription[
-        address.toLowerCase()
-      ] || null
-    );
-  },
-);

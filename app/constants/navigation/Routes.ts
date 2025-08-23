@@ -63,9 +63,7 @@ const Routes = {
   OPTIONS_SHEET: 'OptionsSheet',
   QR_SCANNER: 'QRScanner',
   TRANSACTIONS_VIEW: 'TransactionsView',
-  REWARDS_TERMS: 'RewardsTerms',
-  REWARDS_DASHBOARD: 'RewardsDashboard',
-  REWARDS_HOME: 'RewardsHome',
+  REWARDS_VIEW: 'RewardsView',
   REWARDS_ONBOARDING_FLOW: 'RewardsOnboardingFlow',
   REWARDS_ONBOARDING_1: 'RewardsOnboarding1',
   REWARDS_ONBOARDING_2: 'RewardsOnboarding2',
@@ -315,7 +313,6 @@ const Routes = {
     AMOUNT: 'Amount',
     DEFAULT: 'Send',
   },
-  REWARDS_VIEW: 'RewardsView',
 };
 
 export default Routes;

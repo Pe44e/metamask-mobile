@@ -165,8 +165,4 @@ export const CONTROLLER_MESSENGERS = {
     getMessenger: getRewardsControllerMessenger,
     getInitMessenger: noop,
   },
-  RewardsController: {
-    getMessenger: getRewardsControllerMessenger,
-    getInitMessenger: noop,
-  },
 } as const;

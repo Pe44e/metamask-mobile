@@ -81,9 +81,9 @@ const TabBar = ({ state, descriptors, navigation }: TabBarProps) => {
           case Routes.TRANSACTIONS_VIEW:
             navigation.navigate(Routes.TRANSACTIONS_VIEW);
             break;
-          case Routes.REWARDS_HOME:
+          case Routes.REWARDS_VIEW:
             if (isRewardsEnabled) {
-              navigation.navigate(Routes.REWARDS_HOME);
+              navigation.navigate(Routes.REWARDS_VIEW);
             }
             break;
           case Routes.SETTINGS_VIEW:
@@ -109,13 +109,13 @@ const TabBar = ({ state, descriptors, navigation }: TabBarProps) => {
       );
     },
     [
+      state,
       descriptors,
-      state.index,
       navigation,
-      tw,
       trackEvent,
       createEventBuilder,
       tw,
+      chainId,
       isRewardsEnabled,
     ],
   );
